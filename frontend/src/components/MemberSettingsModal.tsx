@@ -150,8 +150,8 @@ export const MemberSettingsModal = ({ open, onClose, board }: { open:boolean, on
                 })
             })}>
                 <TextInput
-                    label="Board Name"
-                    placeholder="Celebration Board"
+                    label="Member Name"
+                    placeholder="👤"
                     required
                     {...formAdd.getInputProps("name")}
                 />

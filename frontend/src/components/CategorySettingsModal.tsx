@@ -112,8 +112,8 @@ export const CategorySettingsModal = ({ open, onClose, board }: { open:boolean, 
                 })
             })}>
                 <TextInput
-                    label="Board Name"
-                    placeholder="Celebration Board"
+                    label="Category Name"
+                    placeholder="All"
                     required
                     {...formAdd.getInputProps("name")}
                 />

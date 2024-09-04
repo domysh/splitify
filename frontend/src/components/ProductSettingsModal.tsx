@@ -140,8 +140,8 @@ export const ProductSettingsModal = ({ open, onClose, board }: { open:boolean, o
                 })
             })}>
                 <TextInput
-                    label="Board Name"
-                    placeholder="Celebration Board"
+                    label="Product Name"
+                    placeholder="Banana 🍌"
                     required
                     {...formAdd.getInputProps("name")}
                 />

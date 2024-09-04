@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 
 redis_mgr = socketio.AsyncRedisManager(
     url="redis://localhost:6379/0" if DEBUG else "redis://redis:6379/0",
-) 
+)
 sio_server = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins="*", client_manager=redis_mgr)
 sio_app = socketio.ASGIApp(sio_server, socketio_path="")
 
@@ -39,7 +39,7 @@ async def sio_connect(sid, environ): pass
 @sio_server.on("disconnect")
 async def sio_disconnect(sid): pass
 
-async def front_refresh(additional:list[str]=None):
+async def front_refresh(additional:list[str]|None=None):
     await sio_server.emit("update",[] if additional is None else additional)
 
 async def create_access_token(data: dict):
@@ -174,7 +174,7 @@ async def delete_board_categories(id: str, category_id: str):
     )
     await front_refresh()
     return {"id":str(category_id)}
-    
+
 @guest_api.get("/board/{id}/members", response_model=list[Member], tags=["member"])
 async def get_board_members(id: str):
     """ Get board member list """
