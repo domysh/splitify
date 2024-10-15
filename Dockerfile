@@ -8,7 +8,7 @@ RUN bun run build
 
 
 #Building main conteiner
-FROM --platform=$TARGETARCH python as base
+FROM --platform=$TARGETARCH python:3.12-slim as base
 
 WORKDIR /execute
 ADD ./backend/requirements.txt /execute/requirements.txt
