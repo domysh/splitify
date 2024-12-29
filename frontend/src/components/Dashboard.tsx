@@ -52,7 +52,7 @@ export const Dashboard = () => {
         {boards.isSuccess && 
             boards.data.length === 0?
             
-            <Title order={1}>No boards found</Title>:
+            <Title order={1} mt={20}>No boards found</Title>:
 
             <>{boards.data?.map((board) => 
                 <BoardCard board={board} key={board.id}/>

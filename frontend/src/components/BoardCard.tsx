@@ -12,8 +12,8 @@ export const BoardCard = ({board}:{board:board}) => {
         radius="md"
         style={{
             width: "100%",
-            margin: 10,
-            padding:20,
+            padding: 20,
+            marginTop: 20,
             minHeight:"150px",
             cursor:"pointer"
         }}

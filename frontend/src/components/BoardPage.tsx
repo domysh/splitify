@@ -1,7 +1,7 @@
 import { getToken, socket, useCalculateDebits, useToken } from "@/utils"
 import { boardQuery } from "@/utils/queries"
 import { Role, board } from "@/utils/types"
-import { Checkbox, Loader, Menu, SegmentedControl, Space, Table, Title } from "@mantine/core"
+import { Checkbox, Loader, Menu, ScrollAreaAutosize, SegmentedControl, Space, Table, Title } from "@mantine/core"
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { BackButton, OptionButton } from "./Buttons"
@@ -111,14 +111,17 @@ export const BoardPage = () => {
 
     if (!board) return <></>
     return <>
-        <Space h="xs" />
-        <Title order={2}>{board.name}</Title>
         <Space h="xl" />
+        <Title order={2}>{board.name}</Title>
+        <small>{board.members.length} users and {board.products.length} products</small>
+        <Space h="md" />
+        <ScrollAreaAutosize>
         {
             screen == "products"?
             <ProductsTable board={board} />
             :<MembersTable board={board} />
         }
+        </ScrollAreaAutosize>
         <BoardSettingsModal board={board} open={boardSettingsOpened} onClose={()=>setBoardSettingsOpened(false)} />
         <CategorySettingsModal board={board} open={categorySettingsOpened} onClose={()=>setCategorySettingsOpened(false)} />
         <MemberSettingsModal board={board} open={memberSettingsOpened} onClose={()=>setMemberSettingsOpened(false)} />
@@ -181,17 +184,17 @@ export const MembersTable = ({ board }:{ board: board }) => {
     });
     
       return (
-        <Table stickyHeader stickyHeaderOffset={60} verticalSpacing="md">
+        <Table verticalSpacing="md">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Member</Table.Th>
+              <Table.Th style={{ textWrap: "nowrap" }}>Status</Table.Th>
+              <Table.Th style={{ textWrap: "nowrap" }}>Member</Table.Th>
               {board.categories.map((cat) => (
-                    <Table.Th key={cat.id}>{cat.name}</Table.Th>
+                    <Table.Th style={{ textWrap: "nowrap" }} key={cat.id}>{cat.name}</Table.Th>
               ))}
-              <Table.Th>Paid</Table.Th>
-              <Table.Th>Debit</Table.Th>
-              <Table.Th>Balance</Table.Th>
+              <Table.Th style={{ textWrap: "nowrap" }}>Paid</Table.Th>
+              <Table.Th style={{ textWrap: "nowrap" }}>Debit</Table.Th>
+              <Table.Th style={{ textWrap: "nowrap" }}>Balance</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>{rows}</Table.Tbody>
@@ -248,7 +251,7 @@ export const ProductsTable = ({ board }:{ board: board }) => {
       ));
     
       return (
-        <Table stickyHeader stickyHeaderOffset={60} verticalSpacing="md">
+        <Table verticalSpacing="md">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Product</Table.Th>
