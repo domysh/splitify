@@ -1,19 +1,15 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import Document, Indexed, init_beanie
-import os, secrets
-from pydantic import BaseModel
+import secrets
 from models import Role
-
+from models import Category, Product, Member
+from env import MONGO_URL, DEFAULT_PSW, DB_NAME
 from typing import Annotated
-from utils import crypto
-
-MONGO_URL = os.getenv('MONGO_URL')
-assert not MONGO_URL is None
-DEFAULT_PSW = os.getenv('DEFAULT_PSW')
-DB_NAME = os.getenv('DB_NAME', "splitify")
+from passlib.context import CryptContext
 
 db_client = AsyncIOMotorClient(MONGO_URL)
-from models import Category, Product, Member
+
+crypto = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class Board(Document):
     name: str

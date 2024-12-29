@@ -1,6 +1,12 @@
 import { readLocalStorageValue, readSessionStorageValue, useLocalStorage, useSessionStorage } from "@mantine/hooks";
 import { Role, board } from "./types";
 import { useMemo } from "react";
+import { DEV_IP_BACKEND } from './net';
+import io from 'socket.io-client';
+
+export const socket = import.meta.env.DEV?
+    io("ws://"+DEV_IP_BACKEND, {transports: ["websocket"], path:"/sock" }):
+    io({transports: ["websocket"], path:"/sock"})
 
 export const useToken = () => useLocalStorage({
     key: "login-token",

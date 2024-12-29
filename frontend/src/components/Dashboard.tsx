@@ -9,22 +9,23 @@ import { AddButton } from "./Buttons"
 import { useNavigate } from "react-router-dom"
 import { useForm } from "@mantine/form"
 import { putRequest } from "@/utils/net"
+import { useHeader } from "@/utils/store"
 
 
-export const Dashboard = ({ setHeader }:{ setHeader:(p:any)=>void }) => {
+export const Dashboard = () => {
     const boards = boardsQuery()
     const setLoading = useLoading()
     const location = useNavigate()
 
     const currentUser = getToken()
     const canEdit = [Role.ADMIN, Role.EDITOR].includes(currentUser.role??Role.GUEST)
+    const { setHeader } = useHeader()
 
     const [openAddModal, setOpenAddModal] = useState(false)
 
     useEffect(() => {
         setHeader(canEdit?<>
             <AddButton onClick={()=>setOpenAddModal(true)}/>
-            <Space w="sm" />
         </>:null)
     }, [])
 

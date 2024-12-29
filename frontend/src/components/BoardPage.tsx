@@ -1,5 +1,5 @@
-import { getToken, useCalculateDebits } from "@/utils"
-import { boardsQuery } from "@/utils/queries"
+import { getToken, socket, useCalculateDebits, useToken } from "@/utils"
+import { boardQuery } from "@/utils/queries"
 import { Role, board } from "@/utils/types"
 import { Checkbox, Loader, Menu, SegmentedControl, Space, Table, Title } from "@mantine/core"
 import { useEffect, useState } from "react"
@@ -18,11 +18,13 @@ import { MemberSettingsModal } from "./MemberSettingsModal"
 import { ProductSettingsModal } from "./ProductSettingsModal"
 import { BalanceIcon } from "./Utils"
 import { useImmer } from "use-immer"
+import { useHeader } from "@/utils/store"
 
-export const BoardPage = ({ setHeader }:{ setHeader:(p:any)=>void }) => {
-    const boards = boardsQuery()
+export const BoardPage = () => {
+    
     const { board_id, screen } = useParams() as { board_id:string, screen: "members"|"products"|undefined }
-    const board = boards.data?.find((b) => b.id === board_id)
+    const board_q = boardQuery(board_id)
+    const board = board_q.data
     const location = useNavigate()
     const currentUser = getToken()
     const canEdit = [Role.ADMIN, Role.EDITOR].includes(currentUser.role??Role.GUEST)
@@ -30,6 +32,26 @@ export const BoardPage = ({ setHeader }:{ setHeader:(p:any)=>void }) => {
     const [categorySettingsOpened, setCategorySettingsOpened] = useState(false)
     const [productSettingsOpened, setProductSettingsOpened] = useState(false)
     const [memberSettingsOpened, setMemberSettingsOpened] = useState(false)
+    const queryClient = useQueryClient()
+    const [token, _setToken] = useToken()
+    const { setHeader } = useHeader()
+    
+    useEffect(()=>{
+        const skchann = `update:${board_id.toLowerCase()}`
+        socket.on(skchann, (data) => {
+            console.log("Update received by socket io:", data)
+            queryClient.invalidateQueries({ queryKey: [ "boards" ] })
+        })
+        return () => {
+            socket.off(skchann)
+        }
+    },[board_id])
+
+    useEffect(() => {
+        if (board_q.isError){
+            location(`/`)
+        }
+    }, [board_q.isFetching])
     
     useEffect(() => {
         if ([undefined, "members", "products"].includes(screen) === false)
@@ -46,45 +68,46 @@ export const BoardPage = ({ setHeader }:{ setHeader:(p:any)=>void }) => {
             />
             <Space w="sm" />
             {canEdit?<>
-            <Menu shadow="md" width={200}>
-                <Menu.Target>
-                    <OptionButton />
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label>Board</Menu.Label>
-                    <Menu.Item
-                        leftSection={<IoMdSettings />}
-                        onClick={() => setBoardSettingsOpened(true)}
-                    >
-                        Settings
-                    </Menu.Item>
-                    <Menu.Label>Add, Edit or Remove</Menu.Label>
-                    <Menu.Item
-                        leftSection={<MdCategory />}
-                        onClick={() => setCategorySettingsOpened(true)}
-                    >
-                        Category
-                    </Menu.Item>
-                    <Menu.Item
-                        leftSection={<BsFillPeopleFill />}
-                        onClick={() => setMemberSettingsOpened(true)}
-                    >
-                        Members
-                    </Menu.Item>
-                    <Menu.Item
-                        leftSection={<MdOutlineProductionQuantityLimits />}
-                        onClick={() => setProductSettingsOpened(true)}
-                    >
-                        Products
-                    </Menu.Item>
-                </Menu.Dropdown>
+                <Menu shadow="md" width={200}>
+                    <Menu.Target>
+                        <OptionButton />
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Label>Board</Menu.Label>
+                        <Menu.Item
+                            leftSection={<IoMdSettings />}
+                            onClick={() => setBoardSettingsOpened(true)}
+                        >
+                            Settings
+                        </Menu.Item>
+                        <Menu.Label>Add, Edit or Remove</Menu.Label>
+                        <Menu.Item
+                            leftSection={<MdCategory />}
+                            onClick={() => setCategorySettingsOpened(true)}
+                        >
+                            Category
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<BsFillPeopleFill />}
+                            onClick={() => setMemberSettingsOpened(true)}
+                        >
+                            Members
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MdOutlineProductionQuantityLimits />}
+                            onClick={() => setProductSettingsOpened(true)}
+                        >
+                            Products
+                        </Menu.Item>
+                    </Menu.Dropdown>
                 </Menu>
             </>:null}
-            <Space w="sm" />
-            <BackButton onClick={()=>location("/")}/>
-            <Space w="sm" />
+            { token && <>
+                <Space w="sm" />
+                <BackButton onClick={()=>location("/")}/>
+            </> }
         </>)
-    }, [screen])
+    }, [screen, token])
 
     if (!board) return <></>
     return <>

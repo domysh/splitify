@@ -1,5 +1,6 @@
 import { getLoading, useLoading, useToken } from "@/utils"
 import { postFormRequest } from "@/utils/net";
+import { useHeader } from "@/utils/store";
 import { Box, Button, Group, PasswordInput, Space, TextInput, Title } from "@mantine/core"
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications'
@@ -20,20 +21,28 @@ export const LoginProvider = ({ children }: { children:any }) => {
             password: (val) => val == ""? "Password is required" : null,
         },
     });
+
+    const { setHeader } = useHeader()
     
     useEffect(() => {
         setLoading(false)
         form.reset()
     },[token])
 
+    useEffect(() => {
+        setLoading(false)
+        setHeader(null)
+    }, [])
+
+        useEffect(() => {
+            
+        }, [])
+
     if (token){
         return <>{children}</>
     }
 
-    return <Box className="center-flex-col" style={{
-        width: "100%",
-        height: "100%"
-    }}>
+    return <Box className="center-flex-col" mt={100}>
         <Title order={1}>Login</Title>
         <Space h="md" />
         <form

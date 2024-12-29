@@ -8,7 +8,7 @@ export const getAuthHeaders = ():({[k:string]:string}) => {
         return {}
     }
     return {
-        "Authorization": "Bearer "+token??""
+        "Authorization": "Bearer "+(token??"")
     }
 
 }
