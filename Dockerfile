@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM oven/bun:1 as frontend
+FROM --platform=$BUILDPLATFORM oven/bun:1 AS frontend
 ENV NODE_ENV=production
 WORKDIR /build
 COPY ./frontend/package.json ./frontend/bun.lockb /build/
@@ -8,7 +8,7 @@ RUN bun run build
 
 
 #Building main conteiner
-FROM --platform=$TARGETARCH python:3.12-slim as base
+FROM --platform=$TARGETARCH python:3.12-slim AS base
 
 WORKDIR /execute
 ADD ./backend/requirements.txt /execute/requirements.txt
