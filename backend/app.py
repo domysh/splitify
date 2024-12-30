@@ -11,9 +11,8 @@ from bson import ObjectId, Binary
 from models import Role, Category, Product, Member, UserDTO, AddUser
 from models import BoardDTO, AddBoardForm, AddCategory, AddMember, AddProduct, IdResponse
 import uuid
-import time
 from fastapi.middleware.cors import CORSMiddleware
-from env import DEBUG, CORS_ALLOW, JWT_ALGORITHM, JWT_EXPIRE_H
+from env import DEBUG, CORS_ALLOW, JWT_ALGORITHM
 from utils import APP_SECRET
 from db import init_db, shutdown_db, User, first_run, Board
 from db import crypto
@@ -42,7 +41,6 @@ async def sio_disconnect(sid): pass
 
 async def create_access_token(data: dict):
     to_encode = data.copy()
-    to_encode["exp"] = int(time.time() + JWT_EXPIRE_H*60*60) #3h
     encoded_jwt = jwt.encode(to_encode, await APP_SECRET(), algorithm=JWT_ALGORITHM)
     return encoded_jwt
 

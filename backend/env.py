@@ -9,6 +9,5 @@ DEFAULT_PSW = os.getenv('DEFAULT_PSW')
 DB_NAME = os.getenv('DB_NAME', "splitify")
 
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_H = 3
 
     
