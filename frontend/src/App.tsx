@@ -63,7 +63,7 @@ export default function App() {
                     <Space w="md" />
                     <Image src="/logo.png" alt="Splitify Logo" width={30} height={30} />
                     <Box visibleFrom='xs'>
-                      <Space w="xs" />
+                      <Space w="md" />
                       <Title order={2}>
                         Splitify 🛍️
                       </Title>
