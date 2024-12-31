@@ -1,7 +1,7 @@
 import { readLocalStorageValue, readSessionStorageValue, useLocalStorage, useSessionStorage } from "@mantine/hooks";
-import { Role, board } from "./types";
+import { Role, board } from "@/utils/types";
 import { useMemo } from "react";
-import { DEV_IP_BACKEND } from './net';
+import { DEV_IP_BACKEND } from '@/utils/net';
 import io from 'socket.io-client';
 
 export const socket = import.meta.env.DEV?

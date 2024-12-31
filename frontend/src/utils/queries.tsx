@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getRequest } from "./net";
-import { board } from "./types";
+import { getRequest } from "@/utils/net";
+import { board } from "@/utils/types";
 
 
 export const boardsQuery = () => useQuery({

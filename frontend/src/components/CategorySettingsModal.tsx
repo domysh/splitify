@@ -6,8 +6,8 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { YesOrNoModal } from "./YesOrNoModal";
-import { AddButton, DeleteButton, EditButton } from "./Buttons";
+import { YesOrNoModal } from "@/components/YesOrNoModal";
+import { AddButton, DeleteButton, EditButton } from "@/components/Buttons";
 import { useImmer } from 'use-immer';
 
 export const CategorySettingsModal = ({ open, onClose, board }: { open:boolean, onClose:()=>void, board:board }) => {

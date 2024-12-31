@@ -3,16 +3,16 @@ import '@mantine/notifications/styles.css'
 
 import { Notifications } from '@mantine/notifications';
 import { AppShell, Box, Container, Image, LoadingOverlay, MantineProvider, Space, Title } from '@mantine/core';
-import { LoginProvider } from './components/LoginProvider';
+import { LoginProvider } from '@/components/LoginProvider';
 import { getLoading, socket, useLoading, useToken } from './utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import { Routes, Route, BrowserRouter } from "react-router-dom";
-import { Dashboard } from './components/Dashboard';
-import { BoardPage } from './components/BoardPage';
-import { LogoutButton } from './components/Buttons';
-import { useHeader } from './utils/store';
+import { Dashboard } from '@/components/Dashboard';
+import { BoardPage } from '@/components/BoardPage';
+import { LogoutButton } from '@/components/Buttons';
+import { useHeader } from '@/utils/store';
 
 export default function App() {
 
@@ -61,9 +61,8 @@ export default function App() {
                     alignItems: "center"
                   }}>
                     <Space w="md" />
-                    <Image src="/logo.png" alt="Splitify Logo" width={30} height={30} />
-                    <Box visibleFrom='xs'>
-                      <Space w="md" />
+                    <Image src="/logo.png" alt="Splitify Logo" width={33} height={33} />
+                    <Box visibleFrom='xs' ml="xs">
                       <Title order={2}>
                         Splitify 🛍️
                       </Title>

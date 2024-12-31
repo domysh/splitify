@@ -6,9 +6,9 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { YesOrNoModal } from "./YesOrNoModal";
+import { YesOrNoModal } from "@/components/YesOrNoModal";
 import { useNavigate } from "react-router-dom";
-import { DeleteButton } from "./Buttons";
+import { DeleteButton } from "@/components/Buttons";
 
 
 export const BoardSettingsModal = ({ open, onClose, board }: { open:boolean, onClose:()=>void, board:board }) => {

@@ -12,11 +12,11 @@ import { MdCategory } from "react-icons/md";
 import { BsFillPeopleFill } from "react-icons/bs";
 import { MdOutlineProductionQuantityLimits } from "react-icons/md";
 import { IoMdSettings } from "react-icons/io";
-import { BoardSettingsModal } from "./BoardSettingModal"
-import { CategorySettingsModal } from "./CategorySettingsModal"
-import { MemberSettingsModal } from "./MemberSettingsModal"
-import { ProductSettingsModal } from "./ProductSettingsModal"
-import { BalanceIcon } from "./Utils"
+import { BoardSettingsModal } from "@/components/BoardSettingModal"
+import { CategorySettingsModal } from "@/components/CategorySettingsModal"
+import { MemberSettingsModal } from "@/components/MemberSettingsModal"
+import { ProductSettingsModal } from "@/components/ProductSettingsModal"
+import { BalanceIcon } from "@/components/Utils"
 import { useImmer } from "use-immer"
 import { useHeader } from "@/utils/store"
 

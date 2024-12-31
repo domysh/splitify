@@ -45,6 +45,8 @@ html, body, #root{
 }
 
 .center-flex-col{
-  @extend .center-flex;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   flex-direction: column;
 }
