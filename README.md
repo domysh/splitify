@@ -17,4 +17,9 @@ docker compose pull && docker compose up -d
 # Questo comando aggiornerà l'immagine da ghcr.io all'ultima versione
 ```
 
+## Buildare da source-code
+```bash
+docker compose -f ./compose.build.yml up -d --build
+```
+
 Visita `http://localhost:80` nel tuo browser per utilizzare l'applicazione.

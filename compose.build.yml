@@ -2,7 +2,7 @@
 services:
   website:
     restart: unless-stopped
-    image: ghcr.io/domysh/splitify
+    build: .
     ports:
       - 127.0.0.1:80:8080
   mongo:
