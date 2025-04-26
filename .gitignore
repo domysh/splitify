@@ -1,0 +1,5 @@
+**/*.pyc
+backend/.env
+db/**
+db/
+node_modules/

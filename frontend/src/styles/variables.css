@@ -1,0 +1,25 @@
+:root {
+  
+  --primary: #7a84ff;
+  --primary-light: #9ba3ff;
+  --primary-border: rgba(155, 163, 255, 0.25);
+  
+  --bg-dark: #1a1b25;
+  --bg-light: #1f2033;
+  --surface-dark: rgba(26, 26, 32, 0.7);
+  --surface-input: rgba(20, 21, 36, 0.6);
+
+  --border-light: rgba(255, 255, 255, 0.08);
+
+  --success: #64c896;
+  
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-bright: #f0f0ff;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.3);
+  
+  --backdrop-blur: blur(10px);
+  --transition-standard: all 0.3s ease;
+  
+}

@@ -1,0 +1,33 @@
+{
+  "scripts": {
+    "typecheck": "tsc --watch",
+    "devserver": "tsc && DEBUG=1 bun --hot run dist/index.js",
+    "build": "bunx tsc",
+    "start": "bun dist/index.js",
+    "dev": "concurrently -k -n TSC,BUN -c yellow,cyan \"bun run build -- --watch\" \"bun run devserver\"",
+    "prepare": "ts-patch install"
+  },
+  "dependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/dotenv": "^8.2.3",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/mongodb": "^4.0.7",
+    "@types/socket.io": "^3.0.2",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.16.0",
+    "mongoose": "^8.13.2",
+    "socket.io": "^4.8.1",
+    "typia": "^9.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "ts-patch": "^3.3.0",
+    "typescript": "~5.8.3"
+  }
+}
