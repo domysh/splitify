@@ -22,12 +22,13 @@ export enum UsableBoardPermission {
 
 type UsernameType = string & tags.Pattern<"^[a-zA-Z0-9\\-\\_\\.]{5,30}$">;
 type ObjectIdType = string & tags.Pattern<"^[a-fA-F0-9]{24}$">;
+type LimitString = string & tags.MaxLength<300>
 
 export interface Category {
   _id?: ObjectId;
   id?: ObjectIdType;
-  boardId: string | ObjectId;
-  name: string;
+  boardId: LimitString | ObjectId;
+  name: LimitString;
   order: number;
 }
 
@@ -35,7 +36,7 @@ export interface Product {
   _id?: ObjectId;
   id?: ObjectIdType;
   boardId: ObjectIdType | ObjectId;
-  name: string;
+  name: LimitString;
   price: number;
   categories: ObjectIdType[];
 }
@@ -44,7 +45,7 @@ export interface Member {
   _id?: ObjectId;
   id?: ObjectIdType;
   boardId: ObjectIdType | ObjectId;
-  name: string;
+  name: LimitString;
   paid: number;
   categories: ObjectIdType[];
 }
@@ -60,13 +61,13 @@ export interface BoardAccess {
 export interface Board {
   _id?: ObjectId;
   id?: ObjectIdType;
-  name: string;
+  name: LimitString;
   isPublic: boolean;
   creatorId: ObjectIdType | ObjectId;
 }
 
 export interface UserSession {
-  sessionId: string;
+  sessionId: LimitString;
   createdAt: Date;
   expiresAt: Date;
   lastUsed: Date;
@@ -77,15 +78,15 @@ export interface User {
   _id?: ObjectId;
   id?: ObjectIdType;
   username: UsernameType;
-  password: string;
+  password: LimitString;
   role: Role;
   sessions: UserSession[];
 }
 
 export interface Env {
   _id?: ObjectId;
-  key: string;
-  value: string;
+  key: LimitString;
+  value: LimitString;
 }
 
 export interface IdResponse {
@@ -93,19 +94,19 @@ export interface IdResponse {
 }
 
 export interface AddBoardForm {
-  name: string;
+  name: LimitString;
   isPublic?: boolean;
 }
 
 export interface AddUser {
   username: UsernameType;
-  password: string;
+  password: LimitString;
   role: Role;
 }
 
 export interface UpdateUser {
   username?: UsernameType;
-  password?: string;
+  password?: LimitString;
   role?: Role;
 }
 
@@ -114,24 +115,24 @@ export interface UpdateUsername {
 }
 
 export interface ChangePassword {
-  oldPassword: string;
-  newPassword: string;
+  oldPassword: LimitString;
+  newPassword: LimitString;
 }
 
 export interface AddCategory {
-  name: string;
+  name: LimitString;
   order?: number;
 }
 
 export interface AddProduct {
-  name: string;
+  name: LimitString;
   price: number;
   categories: ObjectIdType[];
   memberId?: ObjectIdType | null;
 }
 
 export interface AddMember {
-  name: string;
+  name: LimitString;
   categories: ObjectIdType[];
   paid: number;
 }
@@ -143,7 +144,7 @@ export interface Transaction {
   fromMemberId: ObjectIdType | ObjectId | null;
   toMemberId: ObjectIdType | ObjectId | null;
   amount: number;
-  description: string;
+  description: LimitString;
   productId?: ObjectIdType | ObjectId | null;
   timestamp: Date;
 }
@@ -152,7 +153,7 @@ export interface AddTransaction {
   fromMemberId?: ObjectIdType | null;
   toMemberId?: ObjectIdType | null;
   amount: number;
-  description: string;
+  description: LimitString;
   productId?: ObjectIdType | null;
 }
 
@@ -176,25 +177,25 @@ export interface AuthRequest extends Request {
 
 export interface LoginRequest {
   username: UsernameType;
-  password: string;
+  password: LimitString;
   keepLogin?: boolean;
 }
 
 export interface RegistrationRequest {
   username: UsernameType;
-  password: string;
-  token?: string;
+  password: LimitString;
+  token?: LimitString;
   keepLogin?: boolean;
 }
 
 export interface JwtPayload {
-  sub: string;
-  sid: string;
+  sub: LimitString;
+  sid: LimitString;
   exp: number;
   iat: number;
 }
 
 export interface SetRegistrationMode {
   mode: RegistrationMode;
-  token?: string & tags.Pattern<"^[a-zA-Z0-9\\-\\_\\.]+$">;
+  token?: LimitString & tags.Pattern<"^[a-zA-Z0-9\\-\\_\\.]+$">;
 }
