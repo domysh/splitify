@@ -2,7 +2,9 @@
 
 Splitify ti aiuterà a dividere correttamente le spese tra i tuoi amici.
 
-<br/>
+<br/><br />
+
+Inizia subito su: [https://splitify.domy.sh](https://splitify.domy.sh) 🛍️
 
 ## Tecnologie utilizzate
 - Frontend: React (Vite), TypeScript, Mantine UI, TanStack Query, Zustand, Socket.IO
