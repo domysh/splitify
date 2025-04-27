@@ -11,6 +11,7 @@
     "analyze": "tsc && vite build && analyze"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.2.0",
     "@mantine/charts": "^7.17.5",
     "@mantine/core": "^7.17.5",
     "@mantine/form": "^7.17.5",

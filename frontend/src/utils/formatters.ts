@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import { format } from 'date-fns';
+import { tz } from '@date-fns/tz'
 
 export const formatPrice = (price: number|Big, includeSymbol = true): string => {
     const formattedValue = (price instanceof Big ? price : price/100).toFixed(2).replace('.', ',');
@@ -9,7 +10,7 @@ export const formatPrice = (price: number|Big, includeSymbol = true): string => 
 export const formatDate = (timestamp: string | Date, includeTime = true): string => {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     const formatStr = includeTime ? "d MMMM yyyy 'alle' HH:mm" : "d MMMM yyyy";
-    return format(date, formatStr);
+    return format(date, formatStr, { in: tz(Intl.DateTimeFormat().resolvedOptions().timeZone) });
 };
 
 export const getInitials = (name: string, limit = 2): string => {
