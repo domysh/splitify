@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { User as UserType, Role } from './types';
-import { defaultOption } from '../config';
+import { defaultOption, setAggregateDefaultOperations } from '../config';
 
 const UserSchema: Schema = new Schema({
   username: { type: String, required: true, unique: true },
@@ -16,5 +16,7 @@ const UserSchema: Schema = new Schema({
     default: []
   }
 }, defaultOption);
+
+setAggregateDefaultOperations(UserSchema)
 
 export default mongoose.model<UserType & Document>('User', UserSchema);

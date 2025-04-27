@@ -15,7 +15,7 @@ export const UserTable = ({ users }: UserTableProps) => {
     const [deleteUser, setDeleteUser] = useState<string | null>(null);
     const [addUserModalOpen, setAddUserModalOpen] = useState(false);
 
-    const getRoleBadge = (role: string) => {
+    const getRoleBadge = useCallback((role: string) => {
         switch (role) {
             case Role.ADMIN:
                 return <Badge color="indigo">Amministratore</Badge>;
@@ -24,7 +24,7 @@ export const UserTable = ({ users }: UserTableProps) => {
             default:
                 return <Badge color="gray">{role}</Badge>;
         }
-    };
+    }, []);
 
     const formatLastAccess = useCallback((user: user) => {
         if (!user.lastAccess) {
@@ -35,7 +35,6 @@ export const UserTable = ({ users }: UserTableProps) => {
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
         if (diffDays === 0) {
             return <Text fz="sm">Oggi, {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Text>;
         } else if (diffDays === 1) {

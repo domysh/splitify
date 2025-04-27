@@ -7,9 +7,9 @@ import Transaction from '../../models/Transaction';
 import BoardAccess from '../../models/BoardAccess';
 import { emitBoardUpdate } from '../../utils/socket';
 import { AddBoardForm, AuthRequest, BoardPermission, Role } from '../../models/types';
-import { ObjectId } from 'mongodb';
 import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
+import { ObjectId } from 'mongodb';
 
 const boardPipeline = ({ categories = true, products = true, members = true, stats = false, filters, loggedId }: {
   categories:boolean,
@@ -74,8 +74,6 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
     },
     {
       $project: {
-        _id: 0,
-        id: { $toString: "$_id" },
         name: 1,
         isPublic: 1,
         creatorId: 1,
@@ -171,8 +169,8 @@ export const getBoards = async (req: AuthRequest, res: Response) => {
           {
             $match: {
               $or: [
-                { creatorId: new ObjectId(user.id) },
-                { 'accesses.userId': new ObjectId(user.id) }
+                { creatorId: new ObjectId(user.id as string) },
+                { 'accesses.userId': new ObjectId(user.id as string) }
               ]
             }
           },

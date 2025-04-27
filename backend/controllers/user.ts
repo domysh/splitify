@@ -26,8 +26,7 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
     const users = await User.aggregate([
       { $project: { password: 0 } },
       calculatelastAccessStage,
-      { $addFields: { id: "$_id" } },
-      { $project: { sessions: 0, _id: 0 } },
+      { $project: { sessions: 0 } },
     ]);
     res.json(users);
   } catch (err) {
@@ -47,8 +46,6 @@ export const getUser = async (req: AuthRequest, res: Response) => {
       { $match: { _id: new ObjectId(id) } },
       { $project: { password: 0 } },
       calculatelastAccessStage,
-      { $addFields: { id: "$_id" } },
-      { $project: { _id: 0 } },
     ])
 
     if (!user) {

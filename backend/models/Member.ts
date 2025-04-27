@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Member as MemberType } from './types';
-import { defaultOption } from '../config';
+import { defaultOption, setAggregateDefaultOperations } from '../config';
 
 const MemberSchema: Schema = new Schema({
   boardId: { type: Schema.Types.ObjectId, ref: 'Board', required: true },
@@ -10,5 +10,6 @@ const MemberSchema: Schema = new Schema({
 }, defaultOption);
 
 MemberSchema.index({ boardId: 1 });
+setAggregateDefaultOperations(MemberSchema)
 
 export default mongoose.model<MemberType & Document>('Member', MemberSchema);

@@ -27,8 +27,6 @@ export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
       },
       {
         $project: {
-          _id: 0,
-          id: { $toString: '$_id' },
           userId: 1,permission: 1,
           username: { $arrayElemAt: ['$user.username', 0] },
         }

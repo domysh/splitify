@@ -1,7 +1,7 @@
 import mongoose, { Schema } from 'mongoose';
-import { defaultOption } from '../config';
+import { defaultOption, setAggregateDefaultOperations } from '../config';
 
-const transactionSchema = new mongoose.Schema({
+const TransactionSchema = new mongoose.Schema({
   boardId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Board',
@@ -34,4 +34,6 @@ const transactionSchema = new mongoose.Schema({
   }
 }, defaultOption);
 
-export default mongoose.model('Transaction', transactionSchema);
+setAggregateDefaultOperations(TransactionSchema)
+
+export default mongoose.model('Transaction', TransactionSchema);

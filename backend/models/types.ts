@@ -170,6 +170,8 @@ export interface TransferBoardOwnership {
   newOwnerId: ObjectIdType;
 }
 
+
+
 export interface AuthRequest extends Request {
   user?: User & Document,
   token?: JwtPayload;

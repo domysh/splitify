@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -8,7 +8,6 @@ export const CORS_ALLOW = process.env.CORS_ALLOW?.toLowerCase() === 'true' || pr
 export const MONGO_URL = process.env.MONGO_URL || (DEBUG ? 'mongodb://localhost:27017/splitify' : 'mongodb://mongo:27017/splitify');
 export const DEFAULT_PSW = process.env.DEFAULT_PSW;
 export const JWT_ALGORITHM = 'HS256';
-
 
 export const defaultOption: mongoose.SchemaOptions = {
     toJSON: {
@@ -22,3 +21,13 @@ export const defaultOption: mongoose.SchemaOptions = {
         }
     }
 };
+
+export const setAggregateDefaultOperations = (s: Schema) => {
+    s.pre('aggregate', function(this: mongoose.Aggregate<any>, next) {
+        this.pipeline().push(
+            { $addFields: { id: { $toString: '$_id' } } },
+            { $project: { _id: 0, __v:0 } }
+        );
+        next();
+    });
+}
