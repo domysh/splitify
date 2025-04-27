@@ -14,6 +14,7 @@ const UserManagementPage = () => {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const { setHeader } = useHeader();
     const currentUser = useCurrentUser();
+    const usersQuery = adminUsersQuery()
 
     useEffect(() => {
         
@@ -23,8 +24,6 @@ const UserManagementPage = () => {
         }
         setHeader(null);
     }, [currentUser, navigate, setHeader]);
-    
-    const usersQuery = adminUsersQuery()
 
     useEffect(() => {
         setLoading(usersQuery.isLoading || (currentUser?.isLoading??false));

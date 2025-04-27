@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Table, Badge, Group, ActionIcon, Text, Box } from "@mantine/core";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import { UserModal } from "@/components/user/UserModal";
@@ -26,7 +26,7 @@ export const UserTable = ({ users }: UserTableProps) => {
         }
     };
 
-    const formatLastAccess = (user: user) => {
+    const formatLastAccess = useCallback((user: user) => {
         if (!user.lastAccess) {
             return <Text c="dimmed" fz="sm">Mai</Text>;
         }
@@ -37,7 +37,6 @@ export const UserTable = ({ users }: UserTableProps) => {
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
         if (diffDays === 0) {
-            // Oggi - mostra ora
             return <Text fz="sm">Oggi, {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Text>;
         } else if (diffDays === 1) {
             // Ieri
@@ -49,7 +48,7 @@ export const UserTable = ({ users }: UserTableProps) => {
             // Più di una settimana
             return <Text fz="sm">{formatDate(date, true)}</Text>;
         }
-    };
+    }, []);
 
     return <Box>
         <Table 
