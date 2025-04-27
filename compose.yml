@@ -5,6 +5,8 @@ services:
     image: ghcr.io/domysh/splitify
     ports:
       - 127.0.0.1:80:8080
+    depends_on:
+      - mongo
   mongo:
     image: mongo:8
     restart: unless-stopped
