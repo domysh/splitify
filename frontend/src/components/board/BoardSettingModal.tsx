@@ -11,7 +11,6 @@ import { DeleteButton } from "@/commons/Buttons";
 import { IconSettings, IconCircleCheck, IconUserPlus, IconUserMinus, IconExchange, IconUsers } from "@tabler/icons-react";
 import { boardAccessQuery } from "@/utils/queries";
 import { BoardPermission } from "@/utils/types";
-import { removeBoardAccess, transferBoardOwnership } from "@/utils/net";
 import { BoardAccessModal } from "@/components/board/BoardAccessModal";
 import { useLoading } from "@/utils/store";
 import { inputStyles, modalOverlayProps, modalTransitionProps } from "@/styles/commonStyles";
@@ -137,7 +136,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
     const handleRemoveAccess = useCallback(async (userId: string) => {
         setLoadingAccess(userId);
         try {
-            await removeBoardAccess(board.id, userId);
+            await deleteRequest(`boards/${board.id}/access/${userId}`);
             notifications.show({
                 title: "Accesso rimosso",
                 message: "L'utente non ha più accesso alla board",
@@ -161,7 +160,9 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
         
         setLoading(true);
         try {
-            await transferBoardOwnership(board.id, confirmTransfer.userId);
+            await putRequest(`boards/${board.id}/transfer`, {
+                body: { newOwnerId: confirmTransfer.userId }
+            });
             
             notifications.show({
                 title: "Proprietà trasferita",

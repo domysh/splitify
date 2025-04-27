@@ -1,4 +1,4 @@
-import { registerUser } from "@/utils/net";
+
 import { Box, Button, Paper, PasswordInput, TextInput, Text, Space, Title, Alert, Group, Checkbox } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, useLoading } from "@/utils/store";
 import { checkboxStyles, inputStyles } from "@/styles/commonStyles";
 import { usernameValidator } from "@/utils";
+import { postRequest } from "@/utils/net";
 
 interface RegisterFormProps {
     onSuccess: () => void;
@@ -72,7 +73,11 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
         try {
             
             const token = registrationMode === RegistrationMode.TOKEN ? values.token : undefined;
-            const registration = await registerUser(values.username, values.password, token, values.keepLogin);
+            const registration = await postRequest('register', { body: { 
+                username: values.username,
+                password: values.password,
+                keepLogin: values.keepLogin, token
+            }});
             if (registration.access_token) {
                 login(registration.access_token);
             }else{

@@ -1,5 +1,4 @@
 import { useAuth } from "./store"
-import { RegistrationInfo } from "./types"
 
 export const DEV_IP_BACKEND = "127.0.0.1:8080"
 
@@ -116,56 +115,12 @@ export const deleteRequest = async (url:string, options: {params?: {[p:string]:a
     }).then(elaborateJsonRequest)
 }
 
-export const addBoardAccess = async (boardId: string, userId: string, permission: string) => {
-    return postRequest(`boards/${boardId}/access`, {
-        body: { userId, permission }
-    });
-};
-
-export const removeBoardAccess = async (boardId: string, userId: string) => {
-    return deleteRequest(`boards/${boardId}/access/${userId}`);
-};
-
-export const transferBoardOwnership = async (boardId: string, newOwnerId: string) => {
-    return putRequest(`boards/${boardId}/transfer`, {
-        body: { newOwnerId }
-    });
-};
-
 export const searchUsers = async (query: string): Promise<any[]> => {
     if (!query || query.length < 2) return [];
-    
     try {
         return await getRequest('users/utils/search', { params: { q: query } });
     } catch (error) {
         console.error('Errore nella ricerca utenti:', error);
         return [];
     }
-};
-
-export const updateBoardAccess = async (boardId: string, userId: string, permission: string) => {
-    return putRequest(`boards/${boardId}/access/${userId}`, {
-        body: { permission }
-    });
-};
-
-export const registerUser = async (username: string, password: string, token?: string, keepLogin?: boolean) => {
-    const body: any = { username, password, keepLogin };
-    if (token) {
-        body.token = token;
-    }
-    return await postRequest('register', { body });
-};
-
-export const getRegistrationInfo = async () => {
-    return await getRequest('register/info') as RegistrationInfo;
-};
-
-export const updateRegistrationSettings = async (registrationMode: string, registrationToken?: string) => {
-    return putRequest('register/set', {
-        body: { 
-            mode: registrationMode,
-            token: registrationToken 
-        }
-    });
 };

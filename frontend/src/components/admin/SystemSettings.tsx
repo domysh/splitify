@@ -1,5 +1,5 @@
 import { registrationInfoQuery } from "@/utils/queries";
-import { updateRegistrationSettings } from "@/utils/net";
+import { putRequest } from "@/utils/net";
 import { RegistrationMode } from "@/utils/types";
 import { Box, Button, Card, Divider, Group, Loader, Paper, Radio, Text, TextInput, Title, Alert } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -55,7 +55,11 @@ const SystemSettings = () => {
                 ? values.registrationToken
                 : undefined;
                 
-            await updateRegistrationSettings(values.registrationMode, token);
+            await putRequest('register/set', {
+                body: { 
+                    mode: values.registrationMode, token
+                }
+            });
             
             notifications.show({
                 title: 'Impostazioni aggiornate',

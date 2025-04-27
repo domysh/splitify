@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, Text, Stack, Select } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { UserSearchSelect } from '@/commons/UserSearchSelect';
-import { addBoardAccess, updateBoardAccess } from '@/utils/net';
+import { postRequest, putRequest } from '@/utils/net';
 import { board, BoardPermission } from '@/utils/types';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { useLoading } from '@/utils/store';
@@ -74,7 +74,9 @@ export const BoardAccessModal = ({
         try {
             
             if (mode === 'update' && initialUserId) {
-                await updateBoardAccess(board.id, initialUserId, selectedPermission);
+                await putRequest(`boards/${board.id}/access/${initialUserId}`, {
+                    body: { permission: selectedPermission }
+                });
                 
                 notifications.show({
                     title: 'Permesso aggiornato',
@@ -83,7 +85,9 @@ export const BoardAccessModal = ({
                     icon: <IconCircleCheck size={18} />
                 });
             } else if (selectedUserId) {
-                await addBoardAccess(board.id, selectedUserId, selectedPermission);
+                await postRequest(`boards/${board.id}/access`, {
+                    body: { userId: selectedUserId, permission: selectedPermission }
+                });
                 
                 notifications.show({
                     title: 'Permesso aggiunto',

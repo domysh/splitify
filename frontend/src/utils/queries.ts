@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getRegistrationInfo, getRequest, searchUsers } from "@/utils/net";
-import { board, user, transaction, boardListing, boardAccess, searchUser, GlobalStats } from "@/utils/types";
+import { getRequest, searchUsers } from "@/utils/net";
+import { board, user, transaction, boardListing, boardAccess, searchUser, GlobalStats, RegistrationInfo } from "@/utils/types";
 import { notifications } from "@mantine/notifications";
 import { useState, useEffect } from "react";
 import { useAuth } from "./store";
@@ -102,7 +102,7 @@ export const registrationInfoQuery = () => {
         queryKey: ['registration', 'info'],
         queryFn: async () => {
             try {
-                return await getRegistrationInfo();
+                return await getRequest('register/info') as RegistrationInfo;
             } catch (error) {
                 console.error('Errore nel caricamento delle impostazioni di sistema:', error);
                 throw error;
