@@ -35,7 +35,7 @@ export const UserTable = ({ users }: UserTableProps) => {
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        if (diffDays === 0) {
+        if (diffDays <= 0) {
             return <Text fz="sm">Oggi, {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Text>;
         } else if (diffDays === 1) {
             // Ieri
