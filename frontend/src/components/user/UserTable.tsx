@@ -31,13 +31,13 @@ export const UserTable = ({ users }: UserTableProps) => {
             return <Text c="dimmed" fz="sm">Mai</Text>;
         }
 
-        const date = new Date(user.lastAccess);
+        const date = new Date(new Date(user.lastAccess));
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        if (diffDays <= 0) {
+        if (diffDays <= 0 && now.getDay() === date.getDay()) {
             return <Text fz="sm">Oggi, {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Text>;
-        } else if (diffDays === 1) {
+        } else if (diffDays <= 1) {
             // Ieri
             return <Text fz="sm">Ieri, {date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</Text>;
         } else if (diffDays < 7) {
