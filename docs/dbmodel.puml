@@ -1,0 +1,109 @@
+@startuml dbmodel
+
+skinparam linetype polyline
+
+' Enums
+enum Role {
+  ADMIN
+  GUEST
+}
+
+enum BoardPermission {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+' Entities
+class User {
+  _id: ObjectId
+  username: String
+  password: String
+  role: Role
+  -- FK --
+  sessions: UserSession[]
+}
+
+class UserSession {
+  sessionId: String
+  createdAt: Date
+  expiresAt: Date
+  lastUsed: Date
+}
+
+class Board {
+  _id: ObjectId
+  name: String
+  isPublic: Boolean
+  -- FK --
+  creatorId: ObjectId
+}
+
+class BoardAccess {
+  _id: ObjectId
+  permission: BoardPermission
+  -- FK --
+  userId: ObjectId
+  boardId: ObjectId
+}
+
+class Category {
+  _id: ObjectId
+  name: String
+  order: Number
+  -- FK --
+  boardId: ObjectId
+}
+
+class Member {
+  _id: ObjectId
+  name: String
+  paid: Number
+  -- FK --
+  boardId: ObjectId
+  categories: ObjectId[]
+}
+
+class Product {
+  _id: ObjectId
+  name: String
+  price: Number
+  -- FK --
+  boardId: ObjectId
+  categories: ObjectId[]
+}
+
+class Transaction {
+  _id: ObjectId
+  amount: Number
+  description: String
+  timestamp: Date
+  -- FK --
+  productId: ObjectId
+  boardId: ObjectId
+  fromMemberId: ObjectId
+  toMemberId: ObjectId
+}
+
+class Env {
+  _id: ObjectId
+  key: String
+  value: String
+}
+
+' Relationships
+User "1" -- "*" UserSession : contains
+User "1" -- "*" Board : creates
+User "1" -- "*" BoardAccess : has access to
+Board "1" -- "*" BoardAccess : grants access to
+Board "1" -- "*" Category : contains
+Board "1" -- "*" Member : contains
+Board "1" -- "*" Product : contains
+Board "1" -- "*" Transaction : contains
+Category "*" -- "*" Member : belongs to
+Category "*" -- "*" Product : belongs to
+Member "0..1" -- "*" Transaction : from
+Member "0..1" -- "*" Transaction : to
+Product "0..1" -- "*" Transaction : part of
+
+@enduml

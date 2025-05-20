@@ -1,0 +1,96 @@
+@startuml usecase
+skinparam linetype polyline
+left to right direction
+
+' Definizione degli attori principali
+actor "Utente non autenticato" as Guest
+actor "Utente" as User
+actor "Amministratore" as Admin
+
+' Definizione dei ruoli nelle board
+rectangle "Azioni per ruolo sulla board" as userRoles {
+    actor "Proprietario (OWNER)" as Owner
+    actor "Modificatore (EDITOR)" as Editor
+    actor "Visualizzatore (VIEWER)" as Viewer
+    Editor -l-|> Viewer
+    Owner -l-|> Editor
+}
+
+rectangle "Splitify" {
+  ' Casi d'uso base per autenticazione
+  usecase "Registrazione" as UC1
+  usecase "Login" as UC2
+  usecase "Logout" as UC3
+  usecase "Visualizzare dashboard" as UC4
+
+  ' Casi d'uso per la gestione delle board
+  usecase "Creare board" as UC5
+  usecase "Visualizzare board" as UC6
+
+  ' Casi d'uso per il proprietario
+  usecase "Modificare impostazioni board" as UC7
+  usecase "Eliminare board" as UC8
+  usecase "Gestire accessi" as UC9
+  usecase "Trasferire proprietà" as UC10
+
+  ' Casi d'uso per editor
+  usecase "Gestire categorie" as UC11
+  usecase "Gestire prodotti" as UC12
+  usecase "Gestire membri" as UC13
+  usecase "Gestire transazioni" as UC14
+
+  ' Casi d'uso per visualizzatore
+  usecase "Visualizzare saldi e debiti" as UC15
+  usecase "Visualizzare pagamenti ottimizzati" as UC16
+
+  ' Casi d'uso generali
+  usecase "Modificare profilo" as UC17
+  usecase "Visualizzare board pubbliche" as UC18
+
+  ' Casi d'uso amministrativi
+  usecase "Gestire utenti" as UC19
+  usecase "Impostazioni di sistema" as UC20
+  usecase "Visualizzare statistiche" as UC21
+}
+
+' Relazioni di ereditarietà tra attori
+Admin --|> User
+User --|> Guest
+
+' Relazioni tra utente e ruoli nelle board
+User <|-- userRoles
+
+' Associazioni utente non autenticato
+Guest --> UC1
+Guest --> UC2
+Guest --> UC18
+
+' Associazioni utente normale
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC17
+
+' Associazioni visualizzatore
+Viewer --> UC6
+Viewer --> UC15
+Viewer --> UC16
+
+' Associazioni editor
+Editor --> UC11
+Editor --> UC12
+Editor --> UC13
+Editor --> UC14
+
+' Associazioni proprietario
+Owner --> UC7
+Owner --> UC8
+Owner --> UC9
+Owner --> UC10
+
+' Associazioni amministratore
+Admin --> UC19
+Admin --> UC20
+Admin --> UC21
+
+@enduml
