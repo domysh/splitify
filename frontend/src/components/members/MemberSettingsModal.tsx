@@ -14,7 +14,6 @@ import { notifications } from "@mantine/notifications";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconCircleCheck, IconUsersGroup } from "@tabler/icons-react";
 import { BottomEditControl } from "@/commons/BottomEditControl";
-import { toIntValue } from "@/commons/AdvancedNumberInput";
 import { AddMemberModal } from "@/components/members/AddMemberModal";
 import { MemberRow } from "@/components/members/MemberTableRow";
 import { MemberMobileCard } from "@/components/members/MemberMobileCard";
@@ -25,6 +24,7 @@ import { modalOverlayProps } from "@/styles/commonStyles";
 import { ModalPaper } from "@/commons/ModalPaper";
 import { EditHeader } from "@/commons/EditHeader";
 import { ResponsivePager } from "@/commons/ResponsivePager";
+import { toIntValue } from "@/utils/formatters";
 
 export interface MemberSettingsModalProps {
     open: boolean;
@@ -94,7 +94,7 @@ export const MemberSettingsModal = ({
     );
 
     const handlePaidChange = useCallback(
-        (id: string, value: any) => {
+        (id: string, value: Big | null) => {
             const numValue = toIntValue(value);
             setEdits((prevEdits) => {
                 const newEdits = { ...prevEdits };
@@ -211,6 +211,7 @@ export const MemberSettingsModal = ({
         board,
         setOpenAddMember,
         currentPage,
+        members.length,
     ]);
 
     const renderMobileCards = useMemo(() => {
@@ -258,6 +259,7 @@ export const MemberSettingsModal = ({
         board,
         setOpenAddMember,
         currentPage,
+        members.length,
     ]);
 
     return (

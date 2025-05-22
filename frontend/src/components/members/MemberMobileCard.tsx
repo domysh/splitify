@@ -23,7 +23,7 @@ export interface MemberMobileCardProps {
     paid: number;
     edits: { [id: string]: { name?: string; paid?: number } };
     onNameChange: (id: string, value: string) => void;
-    onPaidChange: (id: string, value: any) => void;
+    onPaidChange: (id: string, value: Big | null) => void;
     animateTable: boolean;
     index: number;
     board: board;
@@ -57,7 +57,7 @@ export const MemberMobileCard = memo(
             onNameChange(member.id, value);
         };
 
-        const handlePaidChange = (value: any) => {
+        const handlePaidChange = (value: Big | null) => {
             onPaidChange(member.id, value);
         };
 

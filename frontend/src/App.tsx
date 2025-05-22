@@ -3,7 +3,6 @@ import {
     AppShell,
     Box,
     Container,
-    Image,
     LoadingOverlay,
     Title,
     Text,
@@ -112,7 +111,7 @@ export default function App() {
     const [pathLocation, setPathLocation] = useState(window.location.pathname);
     useEffect(() => {
         setPathLocation(window.location.pathname);
-    }, [window.location.pathname, navigate]);
+    }, [navigate]);
 
     const closeNavbar = () => setMobileOpened(false);
 
@@ -184,7 +183,7 @@ export default function App() {
                                     color="white"
                                 />
                             )}
-                            <Image
+                            <img
                                 src="/logo.png"
                                 alt="Splitify Logo"
                                 width={35}

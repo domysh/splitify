@@ -23,7 +23,7 @@ export interface MemberRowProps {
     paid: number;
     edits: { [id: string]: { name?: string; paid?: number } };
     onNameChange: (id: string, value: string) => void;
-    onPaidChange: (id: string, value: any) => void;
+    onPaidChange: (id: string, value: Big | null) => void;
     animateTable: boolean;
     board: board;
 }
@@ -56,7 +56,7 @@ export const MemberRow = memo(
             onNameChange(member.id, value);
         };
 
-        const handlePaidChange = (value: any) => {
+        const handlePaidChange = (value: Big | null) => {
             onPaidChange(member.id, value);
         };
 
