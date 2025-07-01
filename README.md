@@ -4,6 +4,7 @@ Splitify ti aiuterà a dividere correttamente le spese tra i tuoi amici.
 
 <br/><br />
 
+TEMPORANEAMENTE NON DISPONIBILE!
 Inizia subito su: [https://splitify.domy.sh](https://splitify.domy.sh) 🛍️
 
 ## Tecnologie utilizzate
