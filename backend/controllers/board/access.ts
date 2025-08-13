@@ -116,6 +116,7 @@ export const transferBoardOwnership = async (req: AuthRequest, res: Response) =>
     const transferData: TransferBoardOwnership = req.body;
 
     const [board] = await getAuthenticatedBoard(id, userId, BoardPermission.OWNER);
+    
     if (!board) {
       return res.status(404).json({ message: 'Board not found' });
     }
@@ -131,7 +132,7 @@ export const transferBoardOwnership = async (req: AuthRequest, res: Response) =>
     });
 
     await BoardAccess.findOneAndUpdate(
-      { userId, boardId: new ObjectId(id) },
+      { userId:board?.creatorId, boardId: new ObjectId(id) },
       { permission: BoardPermission.EDITOR },
       { upsert: true }
     );
