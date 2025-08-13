@@ -13,7 +13,7 @@ export const ResponsivePager = ({ currentPage, setCurrentPage, totalPages}: Resp
     const isMobile = useMobile()
     const isSmallScreen = useSmallScreen()
 
-    return <Box style={{ display: 'flex', justifyContent: 'center' }}>
+    return <Box style={{ display: 'flex', justifyContent: 'center' }} mt="md">
         {isMobile?<Box className="center-flex" style={{ width: '100%' }}>
             <Button
             onClick={() => setCurrentPage(currentPage > 1 ? currentPage - 1 : 1)}

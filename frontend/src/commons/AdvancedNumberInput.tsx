@@ -49,9 +49,14 @@ export const AdvancedNumberInput = forwardRef<
         );
 
         const [internalValue, setInternalValue] = useState<string>("");
-        const [bigValue, setBigValue] = useState<Big | null>(toBig(value));
-
+        const [bigValue, setBigValueState] = useState<Big | null>(toBig(value));
+        const [isTyping, setIsTyping] = useState(false);
         const [userClearedValue, setUserClearedValue] = useState(false);
+
+        const setBigValue = (v: Big|null) => {
+            if (v && (v).eq(bigValue??Big(0))) return;
+            setBigValueState(v);
+        }
 
         const formatValue = useCallback(
             (val: Big | null): string => {
@@ -74,13 +79,16 @@ export const AdvancedNumberInput = forwardRef<
 
         useEffect(() => {
             const newBigValue = toBig(value);
+            
+            // Don't update internal value if user is actively typing
+            if (isTyping) return;
+            
             setBigValue(newBigValue);
             //console.log('values: ', internalValue, newBigValue, bigValue);
             if (
                 newBigValue !== null &&
                 (!bigValue || !newBigValue.eq(bigValue))
             ) {
-                setBigValue(newBigValue);
                 setInternalValue(formatValue(newBigValue));
             } else if (userClearedValue && internalValue === "") {
                 return;
@@ -98,6 +106,7 @@ export const AdvancedNumberInput = forwardRef<
             internalValue,
             toBig,
             userClearedValue,
+            isTyping,
         ]);
 
         const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,6 +117,7 @@ export const AdvancedNumberInput = forwardRef<
             );
             if (inputValue !== "" && !regex.test(inputValue)) return;
 
+            setIsTyping(true);
             setInternalValue(inputValue);
             onChangeString?.(inputValue);
 
@@ -125,7 +135,7 @@ export const AdvancedNumberInput = forwardRef<
                 if (sanitizedValue === "") {
                     setBigValue(null);
                     onChange?.(null);
-                } else {
+                } else if (sanitizedValue !== "." && sanitizedValue !== decimalSeparator) {
                     const newBigValue = new Big(sanitizedValue);
 
                     const minBig = min !== undefined ? toBig(min) : null;
@@ -138,15 +148,21 @@ export const AdvancedNumberInput = forwardRef<
                     onChange?.(newBigValue);
                 }
             } catch (error) {
-                // Skip errors
+                // Skip errors - this allows partial input like "5," or "5."
             }
         };
 
         const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+            setIsTyping(false);
             if (bigValue !== null) {
                 setInternalValue(formatValue(bigValue));
             }
             props.onBlur?.(e);
+        };
+
+        const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+            setIsTyping(true);
+            props.onFocus?.(e);
         };
 
         return (
@@ -155,6 +171,7 @@ export const AdvancedNumberInput = forwardRef<
                 value={internalValue}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                onFocus={handleFocus}
                 rightSection={
                     currency ? (
                         <Box style={{ marginRight: 8 }}>{currency}</Box>
