@@ -35,12 +35,6 @@ export const getAuthenticatedBoard = async (boardId: string, userId?: string, pe
     if (user && user.role === Role.ADMIN){
         return [authBoard, BoardPermission.OWNER]
     }
-    if (authBoard.isPublic) {
-        if (permRequired && permissionLevels[BoardPermission.VIEWER] < permissionLevels[permRequired]){
-            return [null, null]
-        }
-        return [authBoard, BoardPermission.VIEWER]
-    }
     if (authBoard.creatorId.toString() === userId) {
         if (permRequired && permissionLevels[BoardPermission.OWNER] < permissionLevels[permRequired]){
             return [null, null]
@@ -48,6 +42,12 @@ export const getAuthenticatedBoard = async (boardId: string, userId?: string, pe
         return [authBoard, BoardPermission.OWNER]
     }
     if (!authentication){
+        if (authBoard.isPublic) {
+            if (permRequired && permissionLevels[BoardPermission.VIEWER] < permissionLevels[permRequired]){
+                return [null, null]
+            }
+            return [authBoard, BoardPermission.VIEWER]
+        }
         return [null, null]
     }
     if (permRequired && permissionLevels[authentication] < permissionLevels[permRequired]){

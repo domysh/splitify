@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
 
 const config = {
-    sourceUri: "mongodb://10.99.1.1:27017",
+    sourceUri: "mongodb://100.64.0.4:27017",
     sourceDb: "splitify",
     destinationUri: "mongodb://localhost:27017",
     destinationDb: "splitify",
