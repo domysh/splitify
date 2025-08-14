@@ -79,12 +79,8 @@ export const AdvancedNumberInput = forwardRef<
 
         useEffect(() => {
             const newBigValue = toBig(value);
-            
-            // Don't update internal value if user is actively typing
-            if (isTyping) return;
-            
             setBigValue(newBigValue);
-            //console.log('values: ', internalValue, newBigValue, bigValue);
+            if (isTyping) return;
             if (
                 newBigValue !== null &&
                 (!bigValue || !newBigValue.eq(bigValue))
@@ -172,6 +168,8 @@ export const AdvancedNumberInput = forwardRef<
                 onChange={handleChange}
                 onBlur={handleBlur}
                 onFocus={handleFocus}
+                onFocusCapture={handleFocus}
+                onBlurCapture={handleBlur}
                 rightSection={
                     currency ? (
                         <Box style={{ marginRight: 8 }}>{currency}</Box>
