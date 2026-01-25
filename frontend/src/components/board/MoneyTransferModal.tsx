@@ -11,6 +11,7 @@ import { dropdownStyles, inputStyles, modalOverlayProps } from "@/styles/commonS
 import { FormButtonBox } from "@/commons/FormButtonBox";
 import { ModalPaper } from "@/commons/ModalPaper";
 import { getInitials, hashColor } from "@/utils/formatters";
+import { useMobile } from "@/utils/hooks";
 
 export interface MoneyTransferModalProps {
     board: board;
@@ -19,6 +20,7 @@ export interface MoneyTransferModalProps {
 }
 
 export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalProps) => {
+    const isMobile = useMobile();
     const [loading, setLoading] = useState(false);
     const [fromMemberSearchValue, setFromMemberSearchValue] = useState('');
     const [toMemberSearchValue, setToMemberSearchValue] = useState('');
@@ -153,6 +155,7 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
                             searchValue={fromMemberSearchValue}
                             onSearchChange={setFromMemberSearchValue}
                             styles={dropdownStyles}
+                            comboboxProps={{ withinPortal: !isMobile }}
                             renderOption={({ option }) => (
                                 <Group gap="sm">
                                     <Avatar
@@ -166,6 +169,7 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
                                     <Text fw={500}>{option.label}</Text>
                                 </Group>
                             )}
+                            clearable
                             {...form.getInputProps('fromMember')}
                         />
 
@@ -178,6 +182,7 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
                             searchValue={toMemberSearchValue}
                             onSearchChange={setToMemberSearchValue}
                             styles={dropdownStyles}
+                            comboboxProps={{ withinPortal: !isMobile }}
                             renderOption={({ option }) => (
                                 <Group gap="sm">
                                     <Avatar

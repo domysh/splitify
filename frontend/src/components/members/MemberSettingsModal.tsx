@@ -304,6 +304,16 @@ export const MemberSettingsModal = ({
                                     verticalSpacing="md"
                                     highlightOnHover={false}
                                 >
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th w={40}></Table.Th>
+                                            <Table.Th>Membro</Table.Th>
+                                            <Table.Th>Dovuto</Table.Th>
+                                            <Table.Th>Pagato</Table.Th>
+                                            <Table.Th>Saldo</Table.Th>
+                                            <Table.Th w={40}></Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
                                     <Table.Tbody>{renderTableRows}</Table.Tbody>
                                 </Table>
                             </ScrollArea>

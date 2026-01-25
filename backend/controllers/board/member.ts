@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import Member from '../../models/Member';
+import Transaction from '../../models/Transaction';
+import Product from '../../models/Product';
 import { emitBoardUpdate } from '../../utils/socket';
 import { ObjectId } from 'mongodb';
 import { AddMember, AuthRequest, BoardPermission } from '../../models/types';
@@ -107,14 +109,54 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    await Member.findOneAndDelete({
-      _id: new ObjectId(member_id),
-      boardId: new ObjectId(id) as any
+    const memberObjectId = new ObjectId(member_id);
+    const boardObjectId = new ObjectId(id);
+
+    // Find all transactions involving this member
+    const transactions = await Transaction.find({
+      boardId: boardObjectId as any,
+      $or: [
+        { fromMemberId: memberObjectId },
+        { toMemberId: memberObjectId }
+      ]
     });
 
-    emitBoardUpdate(id, ['members']);
+    for (const transaction of transactions) {
+      if (transaction.cancelled) continue;
+
+      // Reverse effects for the OTHER member if they exist
+      if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
+        await Member.findByIdAndUpdate(
+          transaction.fromMemberId,
+          { $inc: { paid: -transaction.amount } }
+        );
+      }
+
+      if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
+        await Member.findByIdAndUpdate(
+          transaction.toMemberId,
+          { $inc: { paid: transaction.amount } }
+        );
+      }
+
+      // If associated with a product, delete the product
+      if (transaction.productId) {
+        await Product.findByIdAndDelete(transaction.productId);
+      }
+
+      // Delete the transaction
+      await Transaction.findByIdAndDelete(transaction._id);
+    }
+
+    await Member.findOneAndDelete({
+      _id: memberObjectId,
+      boardId: boardObjectId as any
+    });
+
+    emitBoardUpdate(id, ['members', 'transactions', 'products']);
     res.json({ id: member_id });
   } catch (err) {
+    console.error("Error deleting member:", err);
     res.status(400).json({ message: 'Failed to delete member' });
   }
 };

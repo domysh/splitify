@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Modal, Text, Stack, Select } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { UserSearchSelect } from '@/commons/UserSearchSelect';
 import { postRequest, putRequest } from '@/utils/net';
@@ -10,6 +9,7 @@ import { useLoading } from '@/utils/store';
 import { dropdownStyles, modalOverlayOptions, modalStyles, modalTransitionProps } from '@/styles/commonStyles';
 import { FormButtonBox } from '@/commons/FormButtonBox';
 import { ModalPaper } from '@/commons/ModalPaper';
+import { useMobile } from '@/utils/hooks';
 
 interface BoardAccessModalProps {
     open: boolean;
@@ -33,7 +33,7 @@ export const BoardAccessModal = ({
     const [selectedUserId, setSelectedUserId] = useState<string | null>(initialUserId);
     const [selectedPermission, setSelectedPermission] = useState<string | null>(initialPermission || BoardPermission.VIEWER);
     const { setLoading } = useLoading();
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    const isMobile = useMobile();
 
     useEffect(() => {
         if (open) {

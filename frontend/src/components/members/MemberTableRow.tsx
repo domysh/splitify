@@ -10,7 +10,6 @@ import {
 import { useEffect, memo, useState } from "react";
 import { BalanceIcon } from "@/commons/BalanceIcon";
 import { board, member } from "@/utils/types";
-import { AdvancedNumberInput } from "@/commons/AdvancedNumberInput";
 import { DeleteMember } from "@/components/members/DeleteMember";
 import { inputStyles } from "@/styles/commonStyles";
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
@@ -36,7 +35,6 @@ export const MemberRow = memo(
         paid,
         edits,
         onNameChange,
-        onPaidChange,
         animateTable,
         board,
     }: MemberRowProps) => {
@@ -54,10 +52,6 @@ export const MemberRow = memo(
             const value = e.target.value;
             setLocalName(value);
             onNameChange(member.id, value);
-        };
-
-        const handlePaidChange = (value: Big | null) => {
-            onPaidChange(member.id, value);
         };
 
         return (
@@ -117,13 +111,24 @@ export const MemberRow = memo(
                             </Tooltip>
                         </Table.Td>
                         <Table.Td>
+                            <Tooltip label="Totale pagato" position="top" withArrow>
+                                <Badge
+                                    color="green"
+                                    variant="light"
+                                    styles={{ root: { padding: "6px 10px" } }}
+                                >
+                                    {formatPrice(paid)}
+                                </Badge>
+                            </Tooltip>
+                        </Table.Td>
+                        <Table.Td>
                             <Tooltip
                                 label={
                                     balance < 0
                                         ? "Deve ancora pagare"
                                         : balance > 0
-                                          ? "Ha pagato in eccesso"
-                                          : "Saldo in pari"
+                                            ? "Ha pagato in eccesso"
+                                            : "Saldo in pari"
                                 }
                                 position="top"
                                 withArrow
@@ -133,8 +138,8 @@ export const MemberRow = memo(
                                         balance < 0
                                             ? "red"
                                             : balance > 0
-                                              ? "orange"
-                                              : "green"
+                                                ? "orange"
+                                                : "green"
                                     }
                                     variant="light"
                                     styles={{ root: { padding: "6px 10px" } }}
@@ -142,15 +147,6 @@ export const MemberRow = memo(
                                     {formatPrice(balance)}
                                 </Badge>
                             </Tooltip>
-                        </Table.Td>
-                        <Table.Td>
-                            <AdvancedNumberInput
-                                placeholder="0,00"
-                                value={new Big(paid).div(100)}
-                                onChange={handlePaidChange}
-                                style={{ width: 120 }}
-                                styles={inputStyles}
-                            />
                         </Table.Td>
                         <Table.Td>
                             <DeleteMember board={board} member={member} />

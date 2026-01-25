@@ -11,7 +11,6 @@ import {
 import { useEffect, memo, useState } from "react";
 import { board, member } from "@/utils/types";
 import { BalanceIcon } from "@/commons/BalanceIcon";
-import { AdvancedNumberInput } from "@/commons/AdvancedNumberInput";
 import { DeleteMember } from "@/components/members/DeleteMember";
 import { inputStyles } from "@/styles/commonStyles";
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
@@ -36,7 +35,6 @@ export const MemberMobileCard = memo(
         paid,
         edits,
         onNameChange,
-        onPaidChange,
         animateTable,
         index,
         board,
@@ -55,10 +53,6 @@ export const MemberMobileCard = memo(
             const value = e.target.value;
             setLocalName(value);
             onNameChange(member.id, value);
-        };
-
-        const handlePaidChange = (value: Big | null) => {
-            onPaidChange(member.id, value);
         };
 
         return (
@@ -125,6 +119,19 @@ export const MemberMobileCard = memo(
                             </Badge>
                         </Group>
 
+                        <Group align="center" mb="xs">
+                            <Text size="sm" fw={500}>
+                                Ha pagato:
+                            </Text>
+                            <Badge
+                                color="green"
+                                variant="light"
+                                styles={{ root: { padding: "6px 10px" } }}
+                            >
+                                {formatPrice(paid)}
+                            </Badge>
+                        </Group>
+
                         <Group mb="xs">
                             <Text size="sm" fw={500}>
                                 Saldo:
@@ -134,27 +141,14 @@ export const MemberMobileCard = memo(
                                     balance < 0
                                         ? "red"
                                         : balance > 0
-                                          ? "orange"
-                                          : "green"
+                                            ? "orange"
+                                            : "green"
                                 }
                                 variant="light"
                                 styles={{ root: { padding: "6px 10px" } }}
                             >
                                 {formatPrice(balance)}
                             </Badge>
-                        </Group>
-
-                        <Group align="center">
-                            <Text size="sm" fw={500}>
-                                Ha pagato:
-                            </Text>
-                            <AdvancedNumberInput
-                                placeholder="0,00"
-                                value={new Big(paid).div(100)}
-                                onChange={handlePaidChange}
-                                style={{ width: 120 }}
-                                styles={inputStyles}
-                            />
                         </Group>
                     </Paper>
                 )}

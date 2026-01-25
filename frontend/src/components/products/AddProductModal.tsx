@@ -177,10 +177,10 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                 value={formAdd.values.categories}
                                 onChange={(value) => formAdd.setFieldValue("categories", value)}
                                 searchable
-                                clearable
                                 maxDropdownHeight={200}
                                 styles={dropdownStyles}
                                 hidePickedOptions
+                                comboboxProps={{ withinPortal: !isMobile }}
                             />
 
                             <Space h="md" />
@@ -191,6 +191,7 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                 data={memberOptions}
                                 clearable
                                 searchable
+                                comboboxProps={{ withinPortal: !isMobile }}
                                 searchValue={memberSearchValue}
                                 onSearchChange={setMemberSearchValue}
                                 onFocus={handleSearchFocus}

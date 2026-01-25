@@ -177,8 +177,8 @@ export const AddMemberModal = ({
                                 onChange={(value) =>
                                     formAdd.setFieldValue("categories", value)
                                 }
+                                comboboxProps={{ withinPortal: !isMobile }}
                                 searchable
-                                clearable
                                 maxDropdownHeight={200}
                                 styles={dropdownStyles}
                             />

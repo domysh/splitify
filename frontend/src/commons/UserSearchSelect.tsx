@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Select, Loader, SelectProps } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { searchUsersQuery } from '@/utils/queries';
 import { IconSearch } from '@tabler/icons-react';
 import { dropdownStyles } from '@/styles/commonStyles';
+import { useMobile } from '@/utils/hooks';
 
 interface UserSearchSelectProps extends SelectProps {
     onUserSelect: (userId: string | null) => void;
@@ -27,7 +27,7 @@ export const UserSearchSelect = ({
 }: UserSearchSelectProps) => {
     const [searchValue, setSearchValue] = useState('');
     const [value, setValue] = useState<string | null>(null);
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    const isMobile = useMobile();
 
     const { data, isLoading, isFetching } = searchUsersQuery(searchValue);
 
