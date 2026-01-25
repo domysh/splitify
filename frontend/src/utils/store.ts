@@ -14,24 +14,24 @@ export const useHeader = create<HeaderInfo>()((set) => ({
 }))
 
 type LoadingStore = {
-  loadingStates: { [key: string]: boolean|undefined }
-  setLoading: (key?:string, loading?: boolean) => void
+  loadingStates: { [key: string]: boolean | undefined }
+  setLoading: (key?: string, loading?: boolean) => void
   loading: boolean,
 }
 
 export const useLoadingStore = create<LoadingStore>()((set) => ({
   loadingStates: {},
   setLoading: (key, loading) => {
-    if (key){
+    if (key) {
       set((state) => {
         const newLoadingStates = { ...state.loadingStates };
-        
+
         if (loading === undefined) {
           delete newLoadingStates[key];
         } else {
           newLoadingStates[key] = loading;
         }
-        
+
         return {
           ...state,
           loadingStates: newLoadingStates,
@@ -44,7 +44,7 @@ export const useLoadingStore = create<LoadingStore>()((set) => ({
 }))
 
 export const useLoading = () => {
-  const [loadingKey, setLoadingKey] = useState<string|undefined>(undefined)
+  const [loadingKey, setLoadingKey] = useState<string | undefined>(undefined)
   const setLoading = useLoadingStore((state) => state.setLoading)
   useEffect(() => {
     const k = crypto.randomUUID()
@@ -54,7 +54,7 @@ export const useLoading = () => {
       setLoading(k, undefined)
     }
   }, [])
-  return { setLoading: (b:boolean)=>setLoading(loadingKey, b) }
+  return { setLoading: (b: boolean) => setLoading(loadingKey, b) }
 }
 
 export const useIsLoading = () => {
@@ -67,7 +67,7 @@ type NavigateStore = {
 }
 
 export const useRouteFunctions = create<NavigateStore>()((set) => ({
-  navigate: (_:string) => {},
+  navigate: (_: string) => { },
   setNavigate: (navigate) => set({ navigate })
 }))
 
@@ -76,7 +76,9 @@ type AuthState = {
   token: any | null;
   login: (userData: any) => void;
   logout: () => void;
-  tokenInfo: () => JwtPayload|null;
+  tokenInfo: () => JwtPayload | null;
+  isHydrated: boolean;
+  setHydrated: () => void;
 }
 
 export const useAuth = create<AuthState>()(
@@ -87,7 +89,7 @@ export const useAuth = create<AuthState>()(
       login: (userData) => {
         if (!userData) {
           set({ isAuthenticated: false, token: null });
-        }else{
+        } else {
           set({ isAuthenticated: true, token: userData });
         }
       },
@@ -99,9 +101,14 @@ export const useAuth = create<AuthState>()(
         const payload = get().token.split('.')[1];
         return JSON.parse(atob(payload)) as JwtPayload;
       },
+      isHydrated: false,
+      setHydrated: () => set({ isHydrated: true })
     }),
     {
-      name: 'auth-storage'
+      name: 'auth-storage',
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated()
+      }
     }
   )
 )

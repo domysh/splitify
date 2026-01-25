@@ -5,22 +5,25 @@ import { notifications } from '@mantine/notifications';
 
 export const socket = import.meta.env.DEV ?
     io("ws://" + DEV_IP_BACKEND, {
-        path: "/sock/",
+        path: "/sock",
+        autoConnect: false,
         transports: ['websocket'],
         auth: {
             token: useAuth.getState().token
         }
     }) :
     io({
-        path: "/sock/",
+        path: "/sock",
+        autoConnect: false,
         transports: ['websocket'],
         auth: {
             token: useAuth.getState().token
         }
     })
 
-export const onConnectionCallabacks = [] as { key: string, cb: Function }[]
-export const onDisconnectionCallabacks = [] as { key: string, cb: Function }[]
+export const onConnectionCallbacks = [] as { key: string, cb: Function }[]
+export const onDisconnectionCallbacks = [] as { key: string, cb: Function }[]
+const pendingLeaveTimeouts = new Map<string, NodeJS.Timeout>();
 
 export const joinBoardRoom = (boardId: string) => {
     const action = async (retryCount = 0) => {
@@ -47,8 +50,14 @@ export const joinBoardRoom = (boardId: string) => {
         }
     }
 
-    if (!onConnectionCallabacks.some((cb) => (cb.key === "board-" + boardId))) {
-        onConnectionCallabacks.push({
+    // Clear any pending leave callback since we are joining again
+    if (pendingLeaveTimeouts.has(boardId)) {
+        clearTimeout(pendingLeaveTimeouts.get(boardId)!);
+        pendingLeaveTimeouts.delete(boardId);
+    }
+
+    if (!onConnectionCallbacks.some((cb) => (cb.key === "board-" + boardId))) {
+        onConnectionCallbacks.push({
             key: "board-" + boardId,
             cb: () => action(0)
         });
@@ -58,18 +67,26 @@ export const joinBoardRoom = (boardId: string) => {
 };
 
 export const leaveBoardRoom = (boardId: string) => {
-    const index = onConnectionCallabacks.findIndex((cb) => (cb.key === "board-" + boardId));
-    if (index !== -1) {
-        onConnectionCallabacks.splice(index, 1);
-        socket.timeout(5000).emitWithAck('leaveBoard', boardId).then((res) => {
-            if (!res.success) {
-                notifications.show({
-                    title: 'Errore nell\'uscita dalla board',
-                    message: res.error,
-                    color: 'red',
-                    autoClose: 5000
-                });
-            }
-        });
-    }
+    // If a leave is already pending, do nothing (or reset it, but usually not needed)
+    if (pendingLeaveTimeouts.has(boardId)) return;
+
+    const timeout = setTimeout(() => {
+        pendingLeaveTimeouts.delete(boardId);
+        const index = onConnectionCallbacks.findIndex((cb) => (cb.key === "board-" + boardId));
+        if (index !== -1) {
+            onConnectionCallbacks.splice(index, 1);
+            socket.timeout(5000).emitWithAck('leaveBoard', boardId).then((res) => {
+                if (!res.success) {
+                    notifications.show({
+                        title: 'Errore nell\'uscita dalla board',
+                        message: res.error,
+                        color: 'red',
+                        autoClose: 5000
+                    });
+                }
+            });
+        }
+    }, 100); // 100ms debounce
+
+    pendingLeaveTimeouts.set(boardId, timeout);
 };

@@ -21,7 +21,7 @@ import {
     useLoading,
     useLoadingStore,
 } from "@/utils/store";
-import { onConnectionCallabacks, socket } from "@/utils/socket";
+import { onConnectionCallbacks, socket } from "@/utils/socket";
 
 const NavigatorContext = lazy(() => import("@/commons/NavigatorContext"));
 const RegisterPage = lazy(() => import("@/components/RegisterPage"));
@@ -47,7 +47,7 @@ export default function App() {
     const queryClient = useQueryClient();
     const { setLoading } = useLoading();
     const loadingStatus = useLoadingStore((state) => state.loading);
-    const { token, logout } = useAuth();
+    const { token, logout, isHydrated } = useAuth();
     const { header } = useHeader();
     const { navigate } = useRouteFunctions();
 
@@ -59,7 +59,7 @@ export default function App() {
                     queryClient.resetQueries({ queryKey: [] });
                 }
             }
-            onConnectionCallabacks.forEach((callback) => {
+            onConnectionCallbacks.forEach((callback) => {
                 callback.cb(socket);
             });
             first_time = false;
@@ -82,10 +82,15 @@ export default function App() {
     }, [queryClient]);
 
     useEffect(() => {
+        if (!isHydrated) return; // Wait for auth to be loaded from local storage
+
         socket.auth = { token: token };
-        socket.disconnect();
         socket.connect();
-    }, [token]);
+
+        return () => {
+            socket.disconnect();
+        }
+    }, [token, isHydrated]);
 
     const currentUser = useCurrentUser();
 

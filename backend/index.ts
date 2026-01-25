@@ -35,7 +35,7 @@ if (!DEBUG) {
     app.use(express.static(path.join(__dirname, "frontend")));
 
     app.get(/.*/, (req, res) => {
-        if (req.path.startsWith("/api")) {
+        if (req.path.startsWith("/api") || req.path.startsWith("/sock")) {
             res.status(404).send("Not Found");
             return;
         }
