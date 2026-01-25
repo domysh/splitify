@@ -6,11 +6,11 @@ import { postRequest } from "@/utils/net";
 import { AdvancedNumberInput } from "@/commons/AdvancedNumberInput";
 import Big from "big.js";
 import { useForm } from "@mantine/form";
-import { IconExchange, IconCircleCheck, IconShoppingCart } from "@tabler/icons-react";
+import { IconExchange, IconCircleCheck } from "@tabler/icons-react";
 import { dropdownStyles, inputStyles, modalOverlayProps } from "@/styles/commonStyles";
 import { FormButtonBox } from "@/commons/FormButtonBox";
 import { ModalPaper } from "@/commons/ModalPaper";
-import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
+import { getInitials, hashColor } from "@/utils/formatters";
 
 export interface MoneyTransferModalProps {
     board: board;
@@ -18,9 +18,8 @@ export interface MoneyTransferModalProps {
     onClose: () => void;
 }
 
-export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalProps) => {
+export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalProps) => {
     const [loading, setLoading] = useState(false);
-    const [productSearchValue, setProductSearchValue] = useState('');
     const [fromMemberSearchValue, setFromMemberSearchValue] = useState('');
     const [toMemberSearchValue, setToMemberSearchValue] = useState('');
 
@@ -38,11 +37,13 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
                     if (!value && !values.toMember) return 'Per una spesa, specifica chi ha pagato o chi ha ricevuto';
                     return null;
                 }
+                if (!value) return 'Il mittente è obbligatorio';
                 if (!value && !values.toMember) return 'Specifica almeno un mittente o un destinatario';
                 return null;
             },
             toMember: (value, values) => {
                 if (value && value === values.fromMember) return 'Non puoi trasferire denaro allo stesso membro';
+                if (!value && !values.productId) return 'Il destinatario è obbligatorio';
                 return null;
             },
             amount: (value) => {
@@ -68,47 +69,19 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
     }, [open]);
 
     const memberOptions = useMemo(() => [
-        { value: '', label: 'Nessuno' },
         ...board.members.map((member) => ({
             value: member.id,
             label: member.name,
         }))
     ], [board.members]);
 
-    const productOptions = useMemo(() => [
-        { value: '', label: 'Nessuna spesa' },
-        ...board.products.map(product => ({
-            value: product.id,
-            label: `${product.name} (${formatPrice(product.price)})`
-        }))
-    ], [board.products]);
-
-    const isProductTransaction = form.values.productId?true:false;
-
-    useEffect(() => {
-        if (isProductTransaction) {
-            const selectedProduct = board.products.find(p => p.id === form.values.productId);
-            if (selectedProduct) {
-                form.setFieldValue('amount', new Big(selectedProduct.price).div(100));
-                if (!form.values.description) {
-                    if (form.values.fromMember && !form.values.toMember) {
-                        form.setFieldValue('description', `Pagamento per ${selectedProduct.name}`);
-                    } else if (!form.values.fromMember && form.values.toMember) {
-                        form.setFieldValue('description', `Incasso per ${selectedProduct.name}`);
-                    } else {
-                        form.setFieldValue('description', `Transazione per ${selectedProduct.name}`);
-                    }
-                }
-            }
-        }
-    }, [form.values.productId, form.values.fromMember, form.values.toMember, board]);
 
     const handleTransfer = async (values: typeof form.values) => {
         setLoading(true);
         const amountInCents = Math.round(values.amount.mul(100).toNumber());
 
         try {
-            
+
             const transactionData = {
                 fromMemberId: values.fromMember || null,
                 toMemberId: values.toMember || null,
@@ -117,7 +90,7 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
                 productId: values.productId || null
             };
 
-            
+
             await postRequest(`transactions/${board.id}`, {
                 body: transactionData
             });
@@ -142,37 +115,24 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
     };
 
     useEffect(() => {
-        if (isProductTransaction) {
-            form.setFieldValue('toMember', '');
-        }
-    }, [isProductTransaction]);
-    
-    useEffect(() => {
         if (open) return
-        setProductSearchValue('');
         setFromMemberSearchValue('');
         setToMemberSearchValue('');
     }, [open]);
 
-    
-    const selectCommonProps = {
-        maxDropdownHeight: 200,
-        clearable: true,
-        styles: dropdownStyles,
-        onFocus: () => setProductSearchValue(""),
-        onClick: () => setProductSearchValue(""),
-    };
+
+
 
     return (
-        <Modal 
-            opened={open} 
-            onClose={onClose} 
+        <Modal
+            opened={open}
+            onClose={onClose}
             closeOnClickOutside={false}
             title={
                 <Group gap="xs">
-                    {isProductTransaction ? <IconShoppingCart style={{ color: "#9ba3ff" }} /> : <IconExchange style={{ color: "#9ba3ff" }} />}
+                    <IconExchange style={{ color: "#9ba3ff" }} />
                     <Text fw={700} size="lg" style={{ color: "#f0f0ff" }}>
-                        {isProductTransaction ? "Transazione Spesa" : "Nuova Transazione"}
+                        Nuova Transazione
                     </Text>
                 </Group>
             }
@@ -181,57 +141,24 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
             overlayProps={modalOverlayProps}
         >
             <ModalPaper>
-            <form onSubmit={form.onSubmit(handleTransfer)}>
-                <Select
-                    label="Spesa (opzionale)"
-                    placeholder="Associa a una spesa"
-                    data={productOptions}
-                    searchable
-                    searchValue={productSearchValue}
-                    onSearchChange={setProductSearchValue}
-                    {...selectCommonProps}
-                    {...form.getInputProps('productId')}
-                />
-                
-                <Group align="flex-start" gap="md" grow mt="md">
-                    <Select
-                        label={isProductTransaction ? "Chi ha pagato" : "Da (mittente)"}
-                        placeholder="Seleziona membro"
-                        data={memberOptions}
-                        searchable
-                        searchValue={fromMemberSearchValue}
-                        onSearchChange={setFromMemberSearchValue}
-                        renderOption={({ option }) => (
-                            <Group gap="sm">
-                                <Avatar 
-                                    radius="xl" 
-                                    size="sm" 
-                                    color={hashColor(option.label)} 
-                                    src={null}
-                                >
-                                    {option.value ? getInitials(option.label) : ''}
-                                </Avatar>
-                                <Text fw={500}>{option.label}</Text>
-                            </Group>
-                        )}
-                        {...selectCommonProps}
-                        {...form.getInputProps('fromMember')}
-                    />
-                    
-                    {!isProductTransaction && (
+                <form onSubmit={form.onSubmit(handleTransfer)}>
+
+
+                    <Group align="flex-start" gap="md" grow>
                         <Select
-                            label="A (destinatario)"
+                            label={"Da (mittente)"}
                             placeholder="Seleziona membro"
                             data={memberOptions}
                             searchable
-                            searchValue={toMemberSearchValue}
-                            onSearchChange={setToMemberSearchValue}
+                            searchValue={fromMemberSearchValue}
+                            onSearchChange={setFromMemberSearchValue}
+                            styles={dropdownStyles}
                             renderOption={({ option }) => (
                                 <Group gap="sm">
-                                    <Avatar 
-                                        radius="xl" 
-                                        size="sm" 
-                                        color={hashColor(option.label)} 
+                                    <Avatar
+                                        radius="xl"
+                                        size="sm"
+                                        color={hashColor(option.label)}
                                         src={null}
                                     >
                                         {option.value ? getInitials(option.label) : ''}
@@ -239,36 +166,62 @@ export const MoneyTransferModal = ({ board, open, onClose }:MoneyTransferModalPr
                                     <Text fw={500}>{option.label}</Text>
                                 </Group>
                             )}
-                            {...selectCommonProps}
+                            {...form.getInputProps('fromMember')}
+                        />
+
+
+                        <Select
+                            label="A (destinatario)"
+                            placeholder="Seleziona membro"
+                            data={memberOptions}
+                            searchable
+                            searchValue={toMemberSearchValue}
+                            onSearchChange={setToMemberSearchValue}
+                            styles={dropdownStyles}
+                            renderOption={({ option }) => (
+                                <Group gap="sm">
+                                    <Avatar
+                                        radius="xl"
+                                        size="sm"
+                                        color={hashColor(option.label)}
+                                        src={null}
+                                    >
+                                        {option.value ? getInitials(option.label) : ''}
+                                    </Avatar>
+                                    <Text fw={500}>{option.label}</Text>
+                                </Group>
+                            )}
+                            maxDropdownHeight={200}
+                            clearable
                             {...form.getInputProps('toMember')}
                         />
-                    )}
-                </Group>
-                
-                <Group align="flex-start" gap="md" grow mt="md">
-                    <AdvancedNumberInput
-                        label="Importo (€)"
-                        placeholder="0,00"
+
+                    </Group>
+
+                    <Group align="flex-start" gap="md" grow mt="md">
+                        <AdvancedNumberInput
+                            label="Importo (€)"
+                            placeholder="0,00"
+                            styles={inputStyles}
+                            {...form.getInputProps('amount')}
+                        />
+                    </Group>
+
+                    <TextInput
+                        label="Descrizione"
+                        placeholder="Inserisci una descrizione per la transazione"
+                        required
+                        mt="md"
+                        {...form.getInputProps('description')}
                         styles={inputStyles}
-                        {...form.getInputProps('amount')}
                     />
-                </Group>
-                
-                {!isProductTransaction && <TextInput
-                    label="Descrizione"
-                    placeholder="Inserisci una descrizione per la transazione"
-                    required
-                    mt="md"
-                    {...form.getInputProps('description')}
-                    styles={inputStyles}
-                />}
-                <FormButtonBox
-                    icon={isProductTransaction ? <IconShoppingCart size={16} /> : <IconExchange size={16} />}
-                    label={isProductTransaction ? 'Registra Spesa' : 'Registra Transazione'}
-                    onCancel={onClose}
-                    loading={loading}
-                />
-            </form>
+                    <FormButtonBox
+                        icon={<IconExchange size={16} />}
+                        label='Registra Transazione'
+                        onCancel={onClose}
+                        loading={loading}
+                    />
+                </form>
             </ModalPaper>
         </Modal>
     );

@@ -1,4 +1,4 @@
-import { Notifications, notifications } from "@mantine/notifications";
+import { Notifications } from "@mantine/notifications";
 import {
     AppShell,
     Box,
@@ -52,17 +52,6 @@ export default function App() {
     const { navigate } = useRouteFunctions();
 
     useEffect(() => {
-        socket.on("connect_error", (err) => {
-            const errorMsg = `Errore di connessione: ${err.message}`;
-            notifications.show({
-                id: "connection-error",
-                title: "Errore di connessione",
-                message: errorMsg,
-                color: "red",
-                icon: "❌",
-            });
-        });
-
         let first_time = true;
         socket.on("connect", () => {
             if (socket.connected) {

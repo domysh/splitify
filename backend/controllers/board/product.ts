@@ -23,7 +23,7 @@ export const getBoardProducts = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ message: "Board not found" });
         }
 
-        const products = await Product.find({ boardId: new ObjectId(id) });
+        const products = await Product.find({ boardId: new ObjectId(id) as any });
 
         const formattedProducts = products.map((product) => ({
             id: product._id.toString(),
@@ -58,11 +58,11 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
 
         const newProduct = await Product.create({
             _id: generateRandomObjectId(),
-            boardId: new ObjectId(id),
+            boardId: new ObjectId(id) as any,
             name: productData.name,
             price: productData.price || 0,
             categories:
-                productData.categories.map((a) => new ObjectId(a)) || [],
+                productData.categories.map((a) => new ObjectId(a) as any) || [],
         });
 
         const productId = newProduct._id.toString();
@@ -70,7 +70,7 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
         if (memberId) {
             const member = await Member.findOne({
                 _id: new ObjectId(memberId),
-                boardId: new ObjectId(id),
+                boardId: new ObjectId(id) as any,
             });
 
             if (member) {
@@ -112,7 +112,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
 
         const currentProduct = await Product.findOne({
             _id: new ObjectId(product_id),
-            boardId: new ObjectId(id),
+            boardId: new ObjectId(id) as any,
         });
 
         if (!currentProduct) {
@@ -126,7 +126,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         ) {
             const transactions = await Transaction.find({
                 productId: new ObjectId(product_id),
-                boardId: new ObjectId(id),
+                boardId: new ObjectId(id) as any,
             });
 
             if (
@@ -152,7 +152,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         }
 
         const updatedProduct = await Product.findOneAndUpdate(
-            { _id: new ObjectId(product_id), boardId: new ObjectId(id) },
+            { _id: new ObjectId(product_id) as any, boardId: new ObjectId(id) as any },
             { $set: productData },
             { new: true },
         );
@@ -191,30 +191,33 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
         if (!deleteOnlyFlag) {
             const transactions = await Transaction.find({
                 productId: new ObjectId(product_id),
-                boardId: new ObjectId(id),
+                boardId: new ObjectId(id) as any,
             });
 
             for (const transaction of transactions) {
-                await createTransactionHelper(
-                    id,
-                    transaction.toMemberId
-                        ? transaction.toMemberId.toString()
-                        : null,
-                    transaction.fromMemberId
-                        ? transaction.fromMemberId.toString()
-                        : null,
-                    Number(transaction.amount),
-                    `Deleting: ${transaction.description || "Product deleted"}`,
-                    null,
-                );
+                if (transaction.fromMemberId) {
+                    await Member.findByIdAndUpdate(
+                        transaction.fromMemberId,
+                        { $inc: { paid: -Number(transaction.amount) } }
+                    );
+                }
 
-                await Transaction.deleteOne({ _id: transaction._id });
+                if (transaction.toMemberId) {
+                    await Member.findByIdAndUpdate(
+                        transaction.toMemberId,
+                        { $inc: { paid: Number(transaction.amount) } }
+                    );
+                }
+
+                transaction.productId = null;
+                transaction.cancelled = true;
+                await transaction.save();
             }
         }
 
         await Product.findOneAndDelete({
             _id: new ObjectId(product_id),
-            boardId: new ObjectId(id),
+            boardId: new ObjectId(id) as any,
         });
 
         if (!deleteOnlyFlag) {

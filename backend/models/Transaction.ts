@@ -36,10 +36,16 @@ const TransactionSchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
         },
+        cancelled: {
+            type: Boolean,
+            default: false,
+        },
     },
     defaultOption,
 );
 
+import { Transaction } from "./types";
+
 setAggregateDefaultOperations(TransactionSchema);
 
-export default mongoose.model("Transaction", TransactionSchema);
+export default mongoose.model<Transaction & mongoose.Document>("Transaction", TransactionSchema);

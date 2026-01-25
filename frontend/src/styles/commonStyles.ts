@@ -6,7 +6,7 @@ export const inputStyles = {
     border: '1px solid var(--primary-border)',
     padding: '10px 14px',
     borderRadius: '8px',
-    fontSize: '15px',
+    fontSize: '16px',
     transition: 'var(--transition-standard)',
     '&:focus': {
       borderColor: 'rgba(155, 163, 255, 0.6)',
@@ -62,21 +62,21 @@ export const modalOverlayOptions = {
 }
 
 export const checkboxStyles = {
-  label: { 
-      color: '#f1f1f7',
-      fontSize: '0.95rem'
+  label: {
+    color: '#f1f1f7',
+    fontSize: '0.95rem'
   },
   input: {
-      cursor: 'pointer',
-      '&:checked': {
-          backgroundColor: 'rgba(155, 163, 255, 0.8)',
-          borderColor: 'rgba(155, 163, 255, 0.8)'
-      }
+    cursor: 'pointer',
+    '&:checked': {
+      backgroundColor: 'rgba(155, 163, 255, 0.8)',
+      borderColor: 'rgba(155, 163, 255, 0.8)'
+    }
   }
 }
 
 export const buttonStyle = {
-    transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-    border: '1px solid rgba(255, 255, 255, 0.05)'
+  transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+  border: '1px solid rgba(255, 255, 255, 0.05)'
 };

@@ -28,18 +28,18 @@ export interface MembersTableProps {
 export const MembersTable = ({ board }: MembersTableProps) => {
     const queryClient = useQueryClient();
     const isMobile = useMobile();
-    
+
     const { canEdit } = usePermissions(board);
     const userDebitCounter = useCalculateDebits(board);
-    
+
     const sortedCategories = useMemo(() => (
         board.categories.sort((a, b) => a.order - b.order)
     ), [board.categories]);
 
     const tableRef = useStickyScrollableHeader({ headHeight: 30, topOffset: 70 });
-    
+
     const toggleCategoryMutation = useMutation<any, Error, CategoryToggleVariables, MutationContext>({
-        mutationFn: ({ memberId, catId:_, newCategories }) => {
+        mutationFn: ({ memberId, catId: _, newCategories }) => {
             const member = board.members.find(m => m.id === memberId);
             if (!member) throw new Error("Membro non trovato");
             return putRequest(`boards/${board.id}/members/${memberId}`, {
@@ -49,7 +49,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                 }
             });
         },
-        onMutate: async ({ memberId, catId:_, newCategories }) => {
+        onMutate: async ({ memberId, catId: _, newCategories }) => {
             await queryClient.cancelQueries({ queryKey: ['boards', board.id] });
             const previousBoard = queryClient.getQueryData<board>(['boards', board.id]);
             if (previousBoard) {
@@ -57,9 +57,9 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                     if (!old) return previousBoard;
                     return {
                         ...old,
-                        members: old.members.map(m => 
-                            m.id === memberId 
-                                ? { ...m, categories: newCategories } 
+                        members: old.members.map(m =>
+                            m.id === memberId
+                                ? { ...m, categories: newCategories }
                                 : m
                         )
                     };
@@ -79,56 +79,56 @@ export const MembersTable = ({ board }: MembersTableProps) => {
         }
     });
 
-    
+
     const handleCategoryToggle = useCallback((memberId: string, catId: string, currentCategories: string[]) => {
         const isCurrentlyChecked = currentCategories.includes(catId);
         const newCategories = isCurrentlyChecked
             ? currentCategories.filter(c => c !== catId)
             : [...currentCategories, catId];
-            
+
         toggleCategoryMutation.mutate({ memberId, catId, newCategories });
     }, [toggleCategoryMutation]);
 
-    
+
     const isCategoryLoading = useCallback((memberId: string, catId: string) => {
-        const isLoading = toggleCategoryMutation.isPending && 
-            toggleCategoryMutation.variables?.memberId === memberId && 
+        const isLoading = toggleCategoryMutation.isPending &&
+            toggleCategoryMutation.variables?.memberId === memberId &&
             toggleCategoryMutation.variables?.catId === catId;
         return isLoading;
     }, [toggleCategoryMutation.isPending, toggleCategoryMutation.variables]);
 
     const isCheckboxChecked = useCallback((memberId: string, catId: string, currentCategories: string[]) => {
-        
+
         if (
-            toggleCategoryMutation.isPending && 
-            toggleCategoryMutation.variables?.memberId === memberId && 
+            toggleCategoryMutation.isPending &&
+            toggleCategoryMutation.variables?.memberId === memberId &&
             toggleCategoryMutation.variables?.catId === catId
         ) {
             return toggleCategoryMutation.variables.newCategories.includes(catId);
         }
-        
+
         return currentCategories.includes(catId);
     }, [toggleCategoryMutation.isPending, toggleCategoryMutation.variables]);
 
-    
+
     const rows = useMemo(() => {
         return board.members.map((memb) => {
             const debit = userDebitCounter.find((ele) => ele.id === memb.id)?.price ?? 0;
             const balance = memb.paid - debit;
-            
+
             return (
                 <Table.Tr key={memb.id}>
                     <Table.Td>
-                        <Box style={{float: "left", paddingLeft: "10px"}}>
+                        <Box style={{ float: "left", paddingLeft: "10px" }}>
                             <BalanceIcon balance={balance} />
                         </Box>
                     </Table.Td>
                     <Table.Td>
-                        <Box display="flex" style={{gap: 10}}>
-                            <Avatar 
-                                radius="xl" 
-                                size="sm" 
-                                color="indigo" 
+                        <Box display="flex" style={{ gap: 10 }}>
+                            <Avatar
+                                radius="xl"
+                                size="sm"
+                                color="indigo"
                                 src={null}
                             >
                                 {getInitials(memb.name)}
@@ -152,9 +152,9 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                     ))}
                     <Table.Td>{formatPrice(memb.paid)}</Table.Td>
                     <Table.Td>{formatPrice(debit)}</Table.Td>
-                    <Table.Td style={{ 
+                    <Table.Td style={{
                         color: balance < 0 ? '#ff6b6b' : (balance > 0 ? '#ffa94d' : '#51cf66'),
-                        fontWeight: 600 
+                        fontWeight: 600
                     }}>
                         {formatPrice(balance)}
                     </Table.Td>
@@ -170,16 +170,16 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                     {board.members.map((memb) => {
                         const debit = userDebitCounter.find((ele) => ele.id === memb.id)?.price ?? 0;
                         const balance = memb.paid - debit;
-                        
+
                         return (
                             <Card key={memb.id} withBorder p="md">
                                 <Group mb="xs">
                                     <Group gap="sm">
                                         <BalanceIcon balance={balance} />
-                                        <Avatar 
-                                            radius="xl" 
-                                            size="md" 
-                                            color="indigo" 
+                                        <Avatar
+                                            radius="xl"
+                                            size="md"
+                                            color="indigo"
                                             src={null}
                                         >
                                             {getInitials(memb.name)}
@@ -187,7 +187,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                                         <Text fw={500}>{memb.name}</Text>
                                     </Group>
                                 </Group>
-                                
+
                                 <Group mt="md" mb="md" justify="space-between" mx="sm">
                                     <Box>
                                         <Text size="xs" c="dimmed">Pagato</Text>
@@ -199,17 +199,17 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                                     </Box>
                                     <Box mr="xs">
                                         <Text size="xs" c="dimmed">Saldo</Text>
-                                        <Text fw={600} style={{ 
+                                        <Text fw={600} style={{
                                             color: balance < 0 ? '#ff6b6b' : (balance > 0 ? '#ffa94d' : '#51cf66')
                                         }}>
                                             {formatPrice(balance)}
                                         </Text>
                                     </Box>
                                 </Group>
-                                
+
                                 {board.categories.length > 0 && <Divider my="xs" label="Categorie" labelPosition="center" />}
-                                
-                                <SimpleGrid cols={2}>
+
+                                {<SimpleGrid cols={2}>
                                     {sortedCategories.map(cat => (
                                         <Group key={cat.id} gap="xs">
                                             <CategoryCheckbox
@@ -225,7 +225,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                                             />
                                         </Group>
                                     ))}
-                                </SimpleGrid>
+                                </SimpleGrid>}
                             </Card>
                         );
                     })}
@@ -238,15 +238,15 @@ export const MembersTable = ({ board }: MembersTableProps) => {
     return (
         <>
             <ScrollArea className="responsive-table-container">
-                <Table 
-                    verticalSpacing="md" 
-                    style={{ 
-                        minWidth: sortedCategories.length > 1 ? (650 + (sortedCategories.length - 1) * 100) : 'auto' 
+                <Table
+                    verticalSpacing="md"
+                    style={{
+                        minWidth: sortedCategories.length > 1 ? (650 + (sortedCategories.length - 1) * 100) : 'auto'
                     }}
                     ref={tableRef}
                 >
                     <Table.Thead>
-                        <Table.Tr style={{ background: 'rgba(20, 22, 40, 0.7)'}}>
+                        <Table.Tr style={{ background: 'rgba(20, 22, 40, 0.7)' }}>
                             <Table.Th style={{ textWrap: "nowrap" }}>Status</Table.Th>
                             <Table.Th style={{ textWrap: "nowrap" }}>Membro</Table.Th>
                             {sortedCategories.map((cat) => (
@@ -261,7 +261,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                 </Table>
                 <Space h="sm" />
             </ScrollArea>
-            
+
         </>
     );
 };

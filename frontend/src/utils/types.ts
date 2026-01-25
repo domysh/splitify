@@ -25,8 +25,8 @@ export enum RegistrationMode {
     PUBLIC = 'public',
     PRIVATE = 'private',
     TOKEN = 'token'
-  }
-  
+}
+
 
 export interface RegistrationInfo {
     mode: RegistrationMode;
@@ -45,7 +45,7 @@ export interface product {
     name: string;
     price: number;
     categories: string[];
-    memberId?: string; 
+    memberId?: string;
 }
 
 export interface category {
@@ -62,6 +62,7 @@ export interface transaction {
     description: string;
     timestamp: string;
     productId?: string;
+    cancelled?: boolean;
 }
 
 export interface BoardBasicInfo {
@@ -139,4 +140,4 @@ export interface JwtPayload {
     sid: string;
     exp: number;
     iat: number;
-  }
+}

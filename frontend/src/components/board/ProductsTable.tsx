@@ -25,24 +25,24 @@ export interface ProductsTableProps {
 }
 
 
-export const ProductsTable = ({ board }:ProductsTableProps) => {
+export const ProductsTable = ({ board }: ProductsTableProps) => {
     const queryClient = useQueryClient();
     const isMobile = useMobile();
 
     const { canEdit } = usePermissions(board);
 
     const sortedCategories = useMemo(() => (
-        [...board.categories.sort((a, b) => a.order - b.order), { id:"all", name:"Tutti *", order:-1 }]
+        [...board.categories.sort((a, b) => a.order - b.order), { id: "all", name: "Tutti *", order: -1 }]
     ), [board.categories]);
 
     const tableRef = useStickyScrollableHeader({ headHeight: 30, topOffset: 70 });
-    
-    
+
+
     const toggleCategoryMutation = useMutation<any, Error, CategoryToggleVariables, MutationContext>({
-        mutationFn: ({ prodId, catId:_, newCategories }) => {
+        mutationFn: ({ prodId, catId: _, newCategories }) => {
             const product = board.products.find(p => p.id === prodId);
             if (!product) throw new Error("Spesa non trovata");
-            
+
             return putRequest(`boards/${board.id}/products/${prodId}`, {
                 body: {
                     ...product,
@@ -50,33 +50,33 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                 }
             });
         },
-        onMutate: async ({ prodId, catId:_, newCategories }) => {   
+        onMutate: async ({ prodId, catId: _, newCategories }) => {
             await queryClient.cancelQueries({ queryKey: ['boards', board.id] });
             const previousBoard = queryClient.getQueryData<board>(['boards', board.id]);
-            
+
             if (previousBoard) {
                 queryClient.setQueryData<board>(['boards', board.id], (old) => {
                     if (!old) return previousBoard;
-                    
+
                     return {
                         ...old,
-                        products: old.products.map(p => 
-                            p.id === prodId 
-                                ? { ...p, categories: newCategories } 
+                        products: old.products.map(p =>
+                            p.id === prodId
+                                ? { ...p, categories: newCategories }
                                 : p
                         )
                     };
                 });
             }
-             
+
             return { previousBoard };
         },
         onError: (err, _, context) => {
-            
+
             if (context?.previousBoard) {
                 queryClient.setQueryData(['boards', board.id], context.previousBoard);
             }
-            
+
             notifications.show({
                 title: "Errore nell'aggiornamento",
                 message: err.message || "Si è verificato un errore",
@@ -85,11 +85,11 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
         },
     });
 
-    
+
     const handleCategoryToggle = useCallback((prodId: string, catId: string, currentCategories: string[]) => {
         const isAllCategory = catId === "all";
-        const isCurrentlyChecked = isAllCategory?currentCategories.length === 0:currentCategories.includes(catId);
-        const newCategories = isAllCategory ? []: isCurrentlyChecked
+        const isCurrentlyChecked = isAllCategory ? currentCategories.length === 0 : currentCategories.includes(catId);
+        const newCategories = isAllCategory ? [] : isCurrentlyChecked
             ? currentCategories.filter(c => c !== catId)
             : [...currentCategories, catId];
         if (isAllCategory && isCurrentlyChecked) {
@@ -105,20 +105,20 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
         toggleCategoryMutation.mutate({ prodId, catId, newCategories });
     }, [toggleCategoryMutation]);
 
-    
+
     const isCategoryLoading = useCallback((prodId: string, catId: string) => {
-        const isLoading = toggleCategoryMutation.isPending && 
-            toggleCategoryMutation.variables?.prodId === prodId && 
+        const isLoading = toggleCategoryMutation.isPending &&
+            toggleCategoryMutation.variables?.prodId === prodId &&
             toggleCategoryMutation.variables?.catId === catId;
         return isLoading;
     }, [toggleCategoryMutation.isPending, toggleCategoryMutation.variables]);
 
-    
+
     const isCheckboxChecked = useCallback((prodId: string, catId: string, currentCategories: string[]) => {
-        
+
         if (
-            toggleCategoryMutation.isPending && 
-            toggleCategoryMutation.variables?.prodId === prodId && 
+            toggleCategoryMutation.isPending &&
+            toggleCategoryMutation.variables?.prodId === prodId &&
             toggleCategoryMutation.variables?.catId === catId
         ) {
             if (catId === "all") {
@@ -129,19 +129,19 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
         if (catId === "all") {
             return currentCategories.length === 0;
         }
-        
+
         return currentCategories.includes(catId);
     }, [toggleCategoryMutation.isPending, toggleCategoryMutation.variables]);
 
-    const rows = useMemo(() => 
+    const rows = useMemo(() =>
         board.products.map((prod) => (
             <Table.Tr key={prod.id}>
                 <Table.Td>
-                    <Box display="flex" style={{gap: 10}}>
-                        <Avatar 
-                            radius="xl" 
-                            size="sm" 
-                            color={hashColor(prod.name)} 
+                    <Box display="flex" style={{ gap: 10 }}>
+                        <Avatar
+                            radius="xl"
+                            size="sm"
+                            color={hashColor(prod.name)}
                             src={null}
                         >
                             {getInitials(prod.name, 1)}
@@ -166,24 +166,24 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                 ))}
             </Table.Tr>
         )),
-    [board.products, sortedCategories, canEdit, handleCategoryToggle, isCheckboxChecked, isCategoryLoading]);
+        [board.products, sortedCategories, canEdit, handleCategoryToggle, isCheckboxChecked, isCategoryLoading]);
 
     const totalPrice = useMemo(() => (board.products.reduce((acc, prod) => acc + prod.price, 0)), [board.products]);
-    const categoryHeaders = useMemo(() => 
+    const categoryHeaders = useMemo(() =>
         sortedCategories
             .map((cat) => (
                 <Table.Th style={{ textWrap: "nowrap" }} key={cat.id}>{cat.name}</Table.Th>
             )),
-    [sortedCategories]);
-    
+        [sortedCategories]);
+
     if (isMobile) {
         return (
             <Box mt="md">
                 <Card mb="md" withBorder p="md" style={{ background: 'rgba(35, 37, 65, 0.6)' }}>
                     <Group justify="space-between">
-                        <Box display="flex" style={{gap: 10}}>
-                            <Avatar 
-                                radius="xl" 
+                        <Box display="flex" style={{ gap: 10 }}>
+                            <Avatar
+                                radius="xl"
                                 size="sm"
                                 color="rgba(255, 169, 77, 0.7)"
                             >
@@ -200,10 +200,10 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                         <Card key={prod.id} withBorder p="md">
                             <Group justify="space-between" mb="xs">
                                 <Group gap="sm">
-                                    <Avatar 
-                                        radius="xl" 
-                                        size="md" 
-                                        color={hashColor(prod.name)} 
+                                    <Avatar
+                                        radius="xl"
+                                        size="md"
+                                        color={hashColor(prod.name)}
                                         src={null}
                                     >
                                         {getInitials(prod.name, 1)}
@@ -212,9 +212,9 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                                 </Group>
                                 <Text fw={500}>{formatPrice(prod.price)}</Text>
                             </Group>
-                            
+
                             <Divider my="xs" label="Categorie" labelPosition="center" />
-                            
+
                             <SimpleGrid cols={2}>
                                 {sortedCategories.map(cat => (
                                     <Group key={cat.id} gap="xs">
@@ -232,6 +232,8 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                                     </Group>
                                 ))}
                             </SimpleGrid>
+
+
                         </Card>
                     ))}
                 </Stack>
@@ -239,12 +241,12 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
             </Box>
         );
     }
-    
+
     return <>
         <ScrollArea className="responsive-table-container">
             <Table verticalSpacing="md" ref={tableRef}>
                 <Table.Thead>
-                    <Table.Tr style={{ background: 'rgba(20, 22, 40, 0.7)'}}>
+                    <Table.Tr style={{ background: 'rgba(20, 22, 40, 0.7)' }}>
                         <Table.Th>Spesa</Table.Th>
                         <Table.Th>Costo</Table.Th>
                         {categoryHeaders}
@@ -252,15 +254,15 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                 </Table.Thead>
                 <Table.Tbody>
                     {rows}
-                    <Table.Tr key="tot" style={{ 
+                    <Table.Tr key="tot" style={{
                         background: 'rgba(35, 37, 65, 0.6)',
                         borderTop: '1px solid var(--primary-border)',
                         position: 'relative'
                     }}>
                         <Table.Td>
-                            <Box display="flex" style={{gap: 10}}>
-                                <Avatar 
-                                    radius="xl" 
+                            <Box display="flex" style={{ gap: 10 }}>
+                                <Avatar
+                                    radius="xl"
                                     size="sm"
                                     color="rgba(255, 169, 77, 0.7)"
                                 >
@@ -269,18 +271,18 @@ export const ProductsTable = ({ board }:ProductsTableProps) => {
                                 <Text fw={600}>Totale</Text>
                             </Box>
                         </Table.Td>
-                        <Table.Td style={{ 
+                        <Table.Td style={{
                             fontWeight: 'bold',
                             color: '#ffa94d'
                         }}>
                             {formatPrice(totalPrice)}
                         </Table.Td>
-                        <Table.Td colSpan={sortedCategories.length}></Table.Td>
+
                     </Table.Tr>
                 </Table.Tbody>
             </Table>
             <Space h="sm" />
         </ScrollArea>
-        
+
     </>;
 };

@@ -32,12 +32,12 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
     const [isDirty, setIsDirty] = useState(false);
     const [activeTab, setActiveTab] = useState<string>("general");
     const [shareModalOpen, setShareModalOpen] = useState(false);
-    const [confirmTransfer, setConfirmTransfer] = useState<{userId: string, username: string} | null>(null);
+    const [confirmTransfer, setConfirmTransfer] = useState<{ userId: string, username: string } | null>(null);
     const [loadingAccess, setLoadingAccess] = useState<string | null>(null);
     const [editPermissionModal, setEditPermissionModal] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<{userId: string, username: string, permission: BoardPermission} | null>(null);
+    const [selectedUser, setSelectedUser] = useState<{ userId: string, username: string, permission: BoardPermission } | null>(null);
 
-    
+
     const form = useForm({
         initialValues: {
             name: board?.name || '',
@@ -48,7 +48,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
         }
     });
 
-    
+
     useEffect(() => {
         if (open) {
             form.setValues({
@@ -59,7 +59,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
         }
     }, [open, board]);
 
-    
+
     useEffect(() => {
         if (form.values.name !== board?.name || form.values.isPublic !== board?.isPublic) {
             setIsDirty(true);
@@ -68,10 +68,10 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
         }
     }, [form.values, board]);
 
-    
+
     const handleSubmit = (values: typeof form.values) => {
         setLoading(true);
-        
+
         putRequest(`boards/${board?.id}`, { body: values })
             .then((res) => {
                 if (res.id) {
@@ -81,9 +81,9 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                         color: "green",
                         icon: <IconCircleCheck size={20} />
                     });
-                    
+
                     setIsDirty(false);
-                    
+
                 } else {
                     notifications.show({
                         title: "Errore inaspettato",
@@ -104,35 +104,35 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
             });
     };
 
-    
+
     const handleDelete = useCallback(() => {
         setLoading(true)
-        deleteRequest("boards/"+board.id)
-        .then((res) => {
-            if (res.id){
-                onClose()
-                notifications.show({
-                    title: "Board eliminata",
-                    message: "La board è stata eliminata con successo",
-                    color: "green",
-                    icon: <IconCircleCheck size={20} />
-                })
-                queryClient.invalidateQueries({ queryKey: ['boards'] });
-                location("/")
-            }else{
-                notifications.show({
-                    title: "Errore inaspettato",
-                    message: res.detail??res??"Errore sconosciuto",
-                    color: "red"
-                })
-            }
-        }).finally(()=>setLoading(false))
+        deleteRequest("boards/" + board.id)
+            .then((res) => {
+                if (res.id) {
+                    onClose()
+                    notifications.show({
+                        title: "Board eliminata",
+                        message: "La board è stata eliminata con successo",
+                        color: "green",
+                        icon: <IconCircleCheck size={20} />
+                    })
+                    queryClient.invalidateQueries({ queryKey: ['boards'] });
+                    location("/")
+                } else {
+                    notifications.show({
+                        title: "Errore inaspettato",
+                        message: res.detail ?? res ?? "Errore sconosciuto",
+                        color: "red"
+                    })
+                }
+            }).finally(() => setLoading(false))
     }, [board.id, queryClient, location, onClose, setLoading]);
 
-    
+
     const accessQuery = boardAccessQuery(board?.id);
-    
-    
+
+
     const handleRemoveAccess = useCallback(async (userId: string) => {
         setLoadingAccess(userId);
         try {
@@ -153,24 +153,24 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
             setLoadingAccess(null);
         }
     }, [board.id, queryClient]);
-    
-    
+
+
     const handleConfirmTransfer = useCallback(async () => {
         if (!confirmTransfer) return;
-        
+
         setLoading(true);
         try {
             await putRequest(`boards/${board.id}/transfer`, {
                 body: { newOwnerId: confirmTransfer.userId }
             });
-            
+
             notifications.show({
                 title: "Proprietà trasferita",
                 message: `La proprietà della board è stata trasferita a ${confirmTransfer.username}`,
                 color: "green",
                 icon: <IconCircleCheck size={18} />
             });
-            
+
             queryClient.invalidateQueries({ queryKey: ['boards'] });
             onClose();
         } catch (error) {
@@ -185,211 +185,215 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
         }
     }, [board.id, confirmTransfer, onClose, setLoading, queryClient]);
 
-    
+
     const openEditPermissionModal = useCallback((userId: string, username: string, permission: BoardPermission) => {
         setSelectedUser({ userId, username, permission });
         setEditPermissionModal(true);
     }, []);
 
     return <>
-    <Modal 
-        opened={open} 
-        onClose={onClose} 
-        closeOnClickOutside={false}
-        title={
-            <Group gap="xs">
-                <IconSettings color='#9ba3ff' />
-                <Text fw={600}>Impostazioni Board</Text>
-            </Group>
-        } 
-        centered 
-        size="md"
-        overlayProps={modalOverlayProps}
-        transitionProps={modalTransitionProps}
-    >
-        <ModalPaper>
-            <Tabs value={activeTab} onChange={(e) => setActiveTab(e??"general")} style={{borderRadius: '8px'}} variant="pills">
-                <Tabs.List>
-                    <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
-                        Generale
-                    </Tabs.Tab>
-                    <Tabs.Tab value="access" leftSection={<IconUsers size={16} />}>
-                        Permessi
-                    </Tabs.Tab>
-                </Tabs.List>
-                <Divider my="sm" mb="md" />
-                <Tabs.Panel value="general">
-                    <form onSubmit={form.onSubmit(handleSubmit)}>
-                        <Title order={4} mb="md" style={{ color: '#f0f0ff' }}>Modifica Board</Title>
-                        
-                        <TextInput
-                            label={<Text fw={500} mb={5}>Nome Board <span style={{color: "#ff6b6b"}}>*</span></Text>}
-                            placeholder="Inserisci il nome della board..."
-                            required
-                            withAsterisk={false}
-                            {...form.getInputProps("name")}
-                            styles={inputStyles}
-                        />
-                        
-                        <Space h="lg" />
-                        <PublicSwitch {...form.getInputProps("isPublic", { type: "checkbox" })} />                        
-                        <Space h="sm" />
-                        <Box className="center-flex" ml={4}>
-                            <DeleteButton onClick={()=>setConfirmDelete(true)} />
-                            <FormButtonBox
-                                onCancel={onClose}
-                                icon={<IconCircleCheck size={16} />}
-                                label="Salva modifiche"
-                                disabled={!isDirty}
-                                responsive={false}
-                                margins={false}
-                            />
-                        </Box>
-                    </form>
-                </Tabs.Panel>
-                
-                <Tabs.Panel value="access">
-                    <Title order={4} mb="md">Gestione Accessi</Title>
-                    
-                    <Box>
-                        <Text size="sm" c="dimmed" mb="md">
-                            Puoi condividere questa board con altri utenti assegnando loro diversi livelli di accesso.
-                        </Text>                        
-                        {accessQuery.isLoading ? (
-                            <Box className="center-flex" p="md">
-                                <Loader size="sm" />
-                            </Box>
-                        ) : accessQuery.isError ? (
-                            <Text c="red" size="sm">
-                                Errore nel caricamento degli accessi
-                            </Text>
-                        ) : accessQuery.data &&(
-                            <Table withTableBorder withColumnBorders>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Utente</Table.Th>
-                                        <Table.Th>Permesso</Table.Th>
-                                        <Table.Th style={{ width: '100px' }}>Azioni</Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {(accessQuery.data && accessQuery.data.length == 0) && <Table.Tr key="empty">
-                                        <Table.Td colSpan={3}>
-                                            <Text c="dimmed" ta="center" p="md">
-                                                Non ci sono accessi per questa board
-                                            </Text>
-                                        </Table.Td>
-                                    </Table.Tr>}
-                                    {accessQuery.data.map((access) => (
-                                        <Table.Tr key={access.id}>
-                                            <Table.Td>{access.username}</Table.Td>
-                                            <Table.Td>
-                                                <Badge
-                                                    color={
-                                                        access.permission === BoardPermission.EDITOR 
-                                                            ? "green" 
-                                                            : "blue"
-                                                    }
-                                                    style={{ cursor: "pointer" }}
-                                                    onClick={() => openEditPermissionModal(access.userId, access.username, access.permission)}
-                                                >
-                                                    {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
-                                                </Badge>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                <Group gap="xs">
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="blue"
-                                                        onClick={() => setConfirmTransfer({
-                                                            userId: access.userId,
-                                                            username: access.username
-                                                        })}
-                                                        title="Trasferisci proprietà"
-                                                    >
-                                                        <IconExchange size={16} />
-                                                    </ActionIcon>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        color="red"
-                                                        loading={loadingAccess === access.userId}
-                                                        onClick={() => handleRemoveAccess(access.userId)}
-                                                        title="Rimuovi accesso"
-                                                    >
-                                                        <IconUserMinus size={16} />
-                                                    </ActionIcon>
-                                                </Group>
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    ))}
-                                </Table.Tbody>
-                            </Table>
-                        )}
-                        <Group display="flex" justify="flex-end" mt="md">
-                            <Button
-                                leftSection={<IconUserPlus size={16} />}
-                                variant="gradient"
-                                color="blue"
-                                className="transparency-on-hover"
-                                onClick={() => setShareModalOpen(true)}
-                            >
-                                Condividi Board
-                            </Button>
-                        </Group>
-                    </Box>
-                </Tabs.Panel>
-            </Tabs>
-        </ModalPaper>
-    </Modal>
-    
-    
-    <YesOrNoModal
-        open={confirmDelete}
-        onClose={()=>setConfirmDelete(false)}
-        onConfirm={handleDelete}
-        title="Conferma eliminazione"
-        message={
-            <Box>
-                <Text size="lg" mb="md">Sei sicuro di voler eliminare questa board?</Text>
-                <Text fw={700} c="red" size="sm">Questa azione è irreversibile!</Text>
-            </Box>
-        }
-    />
-    
-    
-    <YesOrNoModal
-        open={!!confirmTransfer}
-        onClose={() => setConfirmTransfer(null)}
-        onConfirm={handleConfirmTransfer}
-        title="Trasferimento proprietà"
-        message={
-            <Box>
-                <Text size="lg" mb="md">
-                    Stai per trasferire la proprietà della board a <b>{confirmTransfer?.username}</b>
-                </Text>
-                <Text c="yellow" size="sm" mb="sm">
-                    Non sarai più il proprietario di questa board e avrai solo permessi di modifica.
-                </Text>
-                <Text fw={500} c="red" size="sm">
-                    Questa azione è irreversibile. Sei sicuro di voler procedere?
-                </Text>
-            </Box>
-        }
-        confirmText="Trasferisci proprietà"
-        confirmColor="red"
-    />
+        <Modal
+            opened={open}
+            onClose={onClose}
+            closeOnClickOutside={false}
+            title={
+                <Group gap="xs">
+                    <IconSettings color='#9ba3ff' />
+                    <Text fw={600}>Impostazioni Board</Text>
+                </Group>
+            }
+            centered
+            size="md"
+            overlayProps={modalOverlayProps}
+            transitionProps={modalTransitionProps}
+        >
+            <ModalPaper>
+                <Tabs value={activeTab} onChange={(e) => setActiveTab(e ?? "general")} style={{ borderRadius: '8px' }} variant="pills">
+                    <Tabs.List>
+                        <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
+                            Generale
+                        </Tabs.Tab>
+                        <Tabs.Tab value="access" leftSection={<IconUsers size={16} />}>
+                            Permessi
+                        </Tabs.Tab>
+                    </Tabs.List>
+                    <Divider my="sm" mb="md" />
+                    <Tabs.Panel value="general">
+                        <form onSubmit={form.onSubmit(handleSubmit)}>
+                            <Title order={4} mb="md" style={{ color: '#f0f0ff' }}>Modifica Board</Title>
 
-    <BoardAccessModal
-        open={editPermissionModal || shareModalOpen}
-        onClose={() => {
-            setEditPermissionModal(false)
-            setShareModalOpen(false)
-        }}
-        board={board}
-        mode={editPermissionModal?"update":"add"}
-        initialUserId={selectedUser?.userId}
-        initialUsername={selectedUser?.username}
-        initialPermission={selectedUser?.permission}
-    />
+                            <TextInput
+                                label={<Text fw={500} mb={5}>Nome Board <span style={{ color: "#ff6b6b" }}>*</span></Text>}
+                                placeholder="Inserisci il nome della board..."
+                                required
+                                withAsterisk={false}
+                                {...form.getInputProps("name")}
+                                styles={inputStyles}
+                            />
+
+                            <Space h="lg" />
+                            <PublicSwitch {...form.getInputProps("isPublic", { type: "checkbox" })} />
+                            <Space h="sm" />
+
+
+
+                            <Space h="sm" />
+                            <Box className="center-flex" ml={4}>
+                                <DeleteButton onClick={() => setConfirmDelete(true)} />
+                                <FormButtonBox
+                                    onCancel={onClose}
+                                    icon={<IconCircleCheck size={16} />}
+                                    label="Salva modifiche"
+                                    disabled={!isDirty}
+                                    responsive={false}
+                                    margins={false}
+                                />
+                            </Box>
+                        </form>
+                    </Tabs.Panel>
+
+                    <Tabs.Panel value="access">
+                        <Title order={4} mb="md">Gestione Accessi</Title>
+
+                        <Box>
+                            <Text size="sm" c="dimmed" mb="md">
+                                Puoi condividere questa board con altri utenti assegnando loro diversi livelli di accesso.
+                            </Text>
+                            {accessQuery.isLoading ? (
+                                <Box className="center-flex" p="md">
+                                    <Loader size="sm" />
+                                </Box>
+                            ) : accessQuery.isError ? (
+                                <Text c="red" size="sm">
+                                    Errore nel caricamento degli accessi
+                                </Text>
+                            ) : accessQuery.data && (
+                                <Table withTableBorder withColumnBorders>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>Utente</Table.Th>
+                                            <Table.Th>Permesso</Table.Th>
+                                            <Table.Th style={{ width: '100px' }}>Azioni</Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {(accessQuery.data && accessQuery.data.length == 0) && <Table.Tr key="empty">
+                                            <Table.Td colSpan={3}>
+                                                <Text c="dimmed" ta="center" p="md">
+                                                    Non ci sono accessi per questa board
+                                                </Text>
+                                            </Table.Td>
+                                        </Table.Tr>}
+                                        {accessQuery.data.map((access) => (
+                                            <Table.Tr key={access.id}>
+                                                <Table.Td>{access.username}</Table.Td>
+                                                <Table.Td>
+                                                    <Badge
+                                                        color={
+                                                            access.permission === BoardPermission.EDITOR
+                                                                ? "green"
+                                                                : "blue"
+                                                        }
+                                                        style={{ cursor: "pointer" }}
+                                                        onClick={() => openEditPermissionModal(access.userId, access.username, access.permission)}
+                                                    >
+                                                        {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
+                                                    </Badge>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <Group gap="xs">
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="blue"
+                                                            onClick={() => setConfirmTransfer({
+                                                                userId: access.userId,
+                                                                username: access.username
+                                                            })}
+                                                            title="Trasferisci proprietà"
+                                                        >
+                                                            <IconExchange size={16} />
+                                                        </ActionIcon>
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="red"
+                                                            loading={loadingAccess === access.userId}
+                                                            onClick={() => handleRemoveAccess(access.userId)}
+                                                            title="Rimuovi accesso"
+                                                        >
+                                                            <IconUserMinus size={16} />
+                                                        </ActionIcon>
+                                                    </Group>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ))}
+                                    </Table.Tbody>
+                                </Table>
+                            )}
+                            <Group display="flex" justify="flex-end" mt="md">
+                                <Button
+                                    leftSection={<IconUserPlus size={16} />}
+                                    variant="gradient"
+                                    color="blue"
+                                    className="transparency-on-hover"
+                                    onClick={() => setShareModalOpen(true)}
+                                >
+                                    Condividi Board
+                                </Button>
+                            </Group>
+                        </Box>
+                    </Tabs.Panel>
+                </Tabs>
+            </ModalPaper>
+        </Modal>
+
+
+        <YesOrNoModal
+            open={confirmDelete}
+            onClose={() => setConfirmDelete(false)}
+            onConfirm={handleDelete}
+            title="Conferma eliminazione"
+            message={
+                <Box>
+                    <Text size="lg" mb="md">Sei sicuro di voler eliminare questa board?</Text>
+                    <Text fw={700} c="red" size="sm">Questa azione è irreversibile!</Text>
+                </Box>
+            }
+        />
+
+
+        <YesOrNoModal
+            open={!!confirmTransfer}
+            onClose={() => setConfirmTransfer(null)}
+            onConfirm={handleConfirmTransfer}
+            title="Trasferimento proprietà"
+            message={
+                <Box>
+                    <Text size="lg" mb="md">
+                        Stai per trasferire la proprietà della board a <b>{confirmTransfer?.username}</b>
+                    </Text>
+                    <Text c="yellow" size="sm" mb="sm">
+                        Non sarai più il proprietario di questa board e avrai solo permessi di modifica.
+                    </Text>
+                    <Text fw={500} c="red" size="sm">
+                        Questa azione è irreversibile. Sei sicuro di voler procedere?
+                    </Text>
+                </Box>
+            }
+            confirmText="Trasferisci proprietà"
+            confirmColor="red"
+        />
+
+        <BoardAccessModal
+            open={editPermissionModal || shareModalOpen}
+            onClose={() => {
+                setEditPermissionModal(false)
+                setShareModalOpen(false)
+            }}
+            board={board}
+            mode={editPermissionModal ? "update" : "add"}
+            initialUserId={selectedUser?.userId}
+            initialUsername={selectedUser?.username}
+            initialPermission={selectedUser?.permission}
+        />
     </>
 }

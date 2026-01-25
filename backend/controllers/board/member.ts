@@ -9,15 +9,15 @@ import { getAuthenticatedBoard } from '../../utils';
 export const getBoardMembers = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const userId = req.user?.id;
     const [board, perm] = await getAuthenticatedBoard(id, userId, BoardPermission.VIEWER);
     if (!board || !perm) {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const members = await Member.find({ boardId: new ObjectId(id) });
-    
+    const members = await Member.find({ boardId: new ObjectId(id) as any });
+
     const formattedMembers = members.map(member => ({
       id: member._id.toString(),
       name: member.name,
@@ -44,10 +44,10 @@ export const createMember = async (req: AuthRequest, res: Response) => {
 
     const newMember = await Member.create({
       _id: generateRandomObjectId(),
-      boardId: new ObjectId(id),
+      boardId: new ObjectId(id) as any,
       name: memberData.name,
       paid: memberData.paid || 0,
-      categories: memberData.categories.map(a => new ObjectId(a)) || []
+      categories: memberData.categories.map(a => new ObjectId(a) as any) || []
     });
 
     emitBoardUpdate(id, ['members']);
@@ -70,7 +70,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
 
     const memberBefore = await Member.findOne({
       _id: new ObjectId(member_id),
-      boardId: new ObjectId(id)
+      boardId: new ObjectId(id) as any
     });
 
     if (!memberBefore) {
@@ -109,7 +109,7 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
 
     await Member.findOneAndDelete({
       _id: new ObjectId(member_id),
-      boardId: new ObjectId(id)
+      boardId: new ObjectId(id) as any
     });
 
     emitBoardUpdate(id, ['members']);

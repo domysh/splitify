@@ -147,6 +147,7 @@ export interface Transaction {
   description: LimitString;
   productId?: ObjectIdType | ObjectId | null;
   timestamp: Date;
+  cancelled?: boolean;
 }
 
 export interface AddTransaction {

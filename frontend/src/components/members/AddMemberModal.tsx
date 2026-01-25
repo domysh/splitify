@@ -2,7 +2,6 @@ import {
     Avatar,
     Badge,
     Box,
-    Button,
     Divider,
     Group,
     Modal,
@@ -14,16 +13,13 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
     IconCircleCheck,
-    IconUserPlus,
-    IconRefresh,
-    IconChevronDown,
+    IconUserPlus
 } from "@tabler/icons-react";
 import { board } from "@/utils/types";
 import { postRequest } from "@/utils/net";
-import { AdvancedNumberInput } from "@/commons/AdvancedNumberInput";
 import { useLoading } from "@/utils/store";
 import {
     dropdownStyles,
@@ -57,7 +53,6 @@ export const AddMemberModal = ({
 }: AddMemberModalProps) => {
     const { setLoading } = useLoading();
     const isMobile = useMobile();
-    const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
     const formAdd = useForm<MemberFormValues>({
         initialValues: {
@@ -74,7 +69,6 @@ export const AddMemberModal = ({
 
     useEffect(() => {
         if (formAdd) formAdd.reset();
-        setShowAdvancedOptions(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
@@ -109,7 +103,6 @@ export const AddMemberModal = ({
                         onClose();
                     } else {
                         formAdd.reset();
-                        setShowAdvancedOptions(false);
                     }
                 } else {
                     notifications.show({
@@ -190,88 +183,6 @@ export const AddMemberModal = ({
                                 styles={dropdownStyles}
                             />
 
-                            <Space h="sm" />
-
-                            <Box>
-                                <Button
-                                    variant="subtle"
-                                    color={showAdvancedOptions ? "red" : "gray"}
-                                    size="xs"
-                                    leftSection={
-                                        showAdvancedOptions ? (
-                                            <IconRefresh size={14} />
-                                        ) : (
-                                            <IconChevronDown size={14} />
-                                        )
-                                    }
-                                    onClick={() => {
-                                        formAdd.setFieldValue("paid", 0);
-                                        setShowAdvancedOptions(
-                                            !showAdvancedOptions,
-                                        );
-                                    }}
-                                    mb="xs"
-                                >
-                                    {showAdvancedOptions
-                                        ? "Nascondi opzioni avanzate"
-                                        : "Mostra opzioni avanzate"}
-                                </Button>
-
-                                {showAdvancedOptions && (
-                                    <Paper
-                                        p="sm"
-                                        withBorder
-                                        shadow="sm"
-                                        radius="md"
-                                        style={{
-                                            background:
-                                                "rgba(255, 107, 107, 0.05)",
-                                            borderColor:
-                                                "rgba(255, 107, 107, 0.2)",
-                                        }}
-                                    >
-                                        <Text
-                                            fw={500}
-                                            size="sm"
-                                            mb={5}
-                                            style={{ letterSpacing: "0.3px" }}
-                                        >
-                                            Saldo iniziale
-                                            <Badge
-                                                ml="xs"
-                                                color="red"
-                                                size="sm"
-                                                variant="filled"
-                                            >
-                                                Non consigliato
-                                            </Badge>
-                                        </Text>
-                                        <Group align="center">
-                                            <AdvancedNumberInput
-                                                min={0}
-                                                placeholder="Lascia 0.00 (consigliato)"
-                                                {...formAdd.getInputProps(
-                                                    "paid",
-                                                )}
-                                                styles={inputStyles}
-                                            />
-                                        </Group>
-                                        <Text
-                                            size="xs"
-                                            c="red.7"
-                                            mt={8}
-                                            fw={500}
-                                        >
-                                            Non consigliato: Utilizzare il saldo
-                                            iniziale può causare disallineamenti
-                                            nei conteggi. È preferibile
-                                            registrare i pagamenti tramite la
-                                            funzione "Trasferisci denaro" dopo
-                                            aver creato il membro.
-                                        </Text>
-                                    </Paper>
-                                )}
-                            </Box>
                         </Box>
 
                         <Paper p="md" radius="md" className="paper-element-box">
@@ -295,8 +206,7 @@ export const AddMemberModal = ({
                                     <Text fw={500} size="sm" lineClamp={1}>
                                         {formAdd.values.name || "Nome membro"}
                                     </Text>
-                                    {(formAdd.values.paid > 0 ||
-                                        showAdvancedOptions) && (
+                                    {(formAdd.values.paid > 0) && (
                                         <Badge
                                             mt={5}
                                             color={

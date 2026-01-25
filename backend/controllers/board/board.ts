@@ -12,16 +12,16 @@ import { getAuthenticatedBoard } from '../../utils';
 import { ObjectId } from 'mongodb';
 
 const boardPipeline = ({ categories = true, products = true, members = true, stats = false, filters, loggedId }: {
-  categories:boolean,
-  products:boolean,
-  members:boolean,
-  stats:boolean,
+  categories: boolean,
+  products: boolean,
+  members: boolean,
+  stats: boolean,
   filters?: any[]
   loggedId?: string
 }) => {
   return [
-    ...(filters??[]),
-    ...(loggedId?[{
+    ...(filters ?? []),
+    ...(loggedId ? [{
       $lookup: {
         from: "boardaccesses",
         let: { boardId: "$_id" },
@@ -39,31 +39,31 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
         ],
         as: "userAccess"
       }
-    }]:[]),
-    ...((categories || stats)?[{
+    }] : []),
+    ...((categories || stats) ? [{
       $lookup: {
         from: "categories",
         localField: "_id",
         foreignField: "boardId",
         as: "categories"
       }
-    }]:[]),
-    ...((products || stats)?[{
+    }] : []),
+    ...((products || stats) ? [{
       $lookup: {
         from: "products",
         localField: "_id",
         foreignField: "boardId",
         as: "products"
       }
-    }]:[]),
-    ...((members || stats)?[{
+    }] : []),
+    ...((members || stats) ? [{
       $lookup: {
         from: "members",
         localField: "_id",
         foreignField: "boardId",
         as: "members"
       }
-    }]:[]),
+    }] : []),
     {
       $lookup: {
         from: "users",
@@ -77,46 +77,54 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
         name: 1,
         isPublic: 1,
         creatorId: 1,
-        ...(categories? { categories: {
-          $map: {
-            input: "$categories",
-            as: "cat",
-            in: {
-              id: { $toString: "$$cat._id" },
-              name: "$$cat.name",
-              order: "$$cat.order"
+        ...(categories ? {
+          categories: {
+            $map: {
+              input: "$categories",
+              as: "cat",
+              in: {
+                id: { $toString: "$$cat._id" },
+                name: "$$cat.name",
+                order: "$$cat.order"
+              }
             }
           }
-        } }:{}),
-        ...(products? { products: {
-          $map: {
-            input: "$products",
-            as: "prod",
-            in: {
-              id: { $toString: "$$prod._id" },
-              name: "$$prod.name",
-              price: "$$prod.price",
-              categories: "$$prod.categories"
+        } : {}),
+        ...(products ? {
+          products: {
+            $map: {
+              input: "$products",
+              as: "prod",
+              in: {
+                id: { $toString: "$$prod._id" },
+                name: "$$prod.name",
+                price: "$$prod.price",
+                categories: "$$prod.categories"
+              }
             }
           }
-        } }:{}),
-        ...(members? { members: {
-          $map: {
-            input: "$members",
-            as: "mem",
-            in: {
-              id: { $toString: "$$mem._id" },
-              name: "$$mem.name",
-              paid: "$$mem.paid",
-              categories: "$$mem.categories"
+        } : {}),
+        ...(members ? {
+          members: {
+            $map: {
+              input: "$members",
+              as: "mem",
+              in: {
+                id: { $toString: "$$mem._id" },
+                name: "$$mem.name",
+                paid: "$$mem.paid",
+                categories: "$$mem.categories"
+              }
             }
           }
-        } }:{}),
-        ...(stats?{stats: {
-          productsCount: { $size: "$products" },
-          categoriesCount: { $size: "$categories" },
-          membersCount: { $size: "$members" }
-        }}:{}),
+        } : {}),
+        ...(stats ? {
+          stats: {
+            productsCount: { $size: "$products" },
+            categoriesCount: { $size: "$categories" },
+            membersCount: { $size: "$members" }
+          }
+        } : {}),
         creator: {
           $cond: {
             if: { $gt: [{ $size: "$creatorData" }, 0] },
@@ -127,7 +135,7 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
             else: null
           }
         },
-        permission: loggedId?{
+        permission: loggedId ? {
           $cond: {
             if: { $eq: [{ $toString: "$creatorId" }, loggedId] },
             then: BoardPermission.OWNER,
@@ -139,7 +147,7 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
               }
             }
           }
-        }:BoardPermission.VIEWER // Guest user
+        } : BoardPermission.VIEWER // Guest user
       }
     }
   ]
@@ -147,17 +155,17 @@ const boardPipeline = ({ categories = true, products = true, members = true, sta
 
 
 export const getBoards = async (req: AuthRequest, res: Response) => {
-  try {    
+  try {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Authentication required' });
-    
+
     res.json(
       await Board.aggregate(boardPipeline({
         members: false,
         stats: true,
         products: false,
         categories: true,
-        filters: (user.role === Role.ADMIN)?[]:[
+        filters: (user.role === Role.ADMIN) ? [] : [
           {
             $lookup: {
               from: 'boardaccesses',
@@ -176,7 +184,7 @@ export const getBoards = async (req: AuthRequest, res: Response) => {
           },
           { $project: { accesses: 0 } } // Remove the joined accesses from results
         ],
-        loggedId: user.id
+        loggedId: user.id as string
       }))
     )
   } catch (err) {
@@ -189,20 +197,20 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
   try {
     const boardData: AddBoardForm = req.body;
     const user = req.user;
-    
+
     if (!user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     const board = new Board({
       _id: generateRandomObjectId(),
       name: boardData.name,
       isPublic: boardData.isPublic || false,
       creatorId: user.id
     });
-    
+
     await board.save();
-    
+
     res.status(201).json({ id: board._id.toString() });
   } catch (err) {
     console.error('Error creating board:', err);
@@ -213,7 +221,7 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
 export const getBoard = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const user = req.user;
     const [board] = await getAuthenticatedBoard(id, user?.id);
     if (!board) {
@@ -225,7 +233,7 @@ export const getBoard = async (req: AuthRequest, res: Response) => {
         stats: false,
         products: true,
         categories: true,
-        filters: [ { $match: { _id: new ObjectId(id) } }],
+        filters: [{ $match: { _id: new ObjectId(id) as any } }],
         loggedId: user?.id
       })).then((result) => {
         if (result.length > 0) {
@@ -251,7 +259,7 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
     }
 
     const updatedBoard = await Board.findByIdAndUpdate(
-      id,{ $set: boardData },{ new: true }
+      id, { $set: boardData }, { new: true }
     )
 
     emitBoardUpdate(id);
@@ -264,11 +272,11 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
 
 export const deleteBoardAction = async (id: string) => {
   await Promise.all([
-    Transaction.deleteMany({ boardId: new ObjectId(id) }),
-    Category.deleteMany({ boardId: new ObjectId(id) }),
-    Product.deleteMany({ boardId: new ObjectId(id) }),
-    Member.deleteMany({ boardId: new ObjectId(id) }),
-    BoardAccess.deleteMany({ boardId: new ObjectId(id) }),
+    Transaction.deleteMany({ boardId: new ObjectId(id) as any }),
+    Category.deleteMany({ boardId: new ObjectId(id) as any }),
+    Product.deleteMany({ boardId: new ObjectId(id) as any }),
+    Member.deleteMany({ boardId: new ObjectId(id) as any }),
+    BoardAccess.deleteMany({ boardId: new ObjectId(id) as any }),
     Board.findByIdAndDelete(id)
   ])
 }
@@ -277,12 +285,12 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
-    
+
     const [board, perm] = await getAuthenticatedBoard(id, userId, BoardPermission.OWNER);
     if (!board || !perm) {
       return res.status(404).json({ message: 'Board not found' });
     }
-    
+
     await deleteBoardAction(id)
     emitBoardUpdate(id);
 

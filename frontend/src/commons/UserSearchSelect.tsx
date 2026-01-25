@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Select, Loader, SelectProps } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { searchUsersQuery } from '@/utils/queries';
 import { IconSearch } from '@tabler/icons-react';
 import { dropdownStyles } from '@/styles/commonStyles';
@@ -14,9 +15,9 @@ interface UserSearchSelectProps extends SelectProps {
     excludeUsersIds?: string[];
 }
 
-export const UserSearchSelect = ({ 
-    onUserSelect, 
-    placeholder = 'Cerca utente...', 
+export const UserSearchSelect = ({
+    onUserSelect,
+    placeholder = 'Cerca utente...',
     disabled = false,
     label = 'Utente',
     required = false,
@@ -26,22 +27,23 @@ export const UserSearchSelect = ({
 }: UserSearchSelectProps) => {
     const [searchValue, setSearchValue] = useState('');
     const [value, setValue] = useState<string | null>(null);
-    
+    const isMobile = useMediaQuery('(max-width: 768px)');
+
     const { data, isLoading, isFetching } = searchUsersQuery(searchValue);
-    
-    
+
+
     const handleChange = (newValue: string | null) => {
         setValue(newValue);
         onUserSelect(newValue);
     };
-    
-    const options = data?.filter(user => 
-        (excludeUsersIds && excludeUsersIds.includes(user.id))?false:user
+
+    const options = data?.filter(user =>
+        (excludeUsersIds && excludeUsersIds.includes(user.id)) ? false : user
     ).map(user => ({
         value: user.id,
         label: user.username
     })) || [];
-    
+
     return (
         <Select
             label={label}
@@ -59,7 +61,7 @@ export const UserSearchSelect = ({
             comboboxProps={{
                 transitionProps: { transition: 'pop', duration: 200 },
                 shadow: 'md',
-                withinPortal: true,
+                withinPortal: !isMobile,
             }}
             required={required}
             error={error}

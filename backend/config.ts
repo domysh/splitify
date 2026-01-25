@@ -11,14 +11,14 @@ export const CORS_ALLOW =
 export const MONGO_URL =
     process.env.MONGO_URL ||
     (DEBUG
-        ? "mongodb://localhost:27017/splitify"
+        ? "mongodb://127.0.0.1:27017/splitify"
         : "mongodb://mongo:27017/splitify");
 export const DEFAULT_PSW = process.env.DEFAULT_PSW;
 export const JWT_ALGORITHM = "HS256";
 
 export const defaultOption: mongoose.SchemaOptions = {
     toJSON: {
-        transform: (doc, obj) => {
+        transform: (doc: any, obj: any) => {
             delete obj.__v;
             if (doc._id) {
                 obj.id = doc._id.toString();
@@ -29,11 +29,10 @@ export const defaultOption: mongoose.SchemaOptions = {
     },
 };
 export const setAggregateDefaultOperations = (s: Schema) => {
-    s.pre("aggregate", function (this: mongoose.Aggregate<any>, next) {
+    s.pre("aggregate", function (this: mongoose.Aggregate<any>) {
         this.pipeline().push(
             { $addFields: { id: { $toString: "$_id" } } },
             { $project: { _id: 0, __v: 0 } },
         );
-        next();
     });
 };

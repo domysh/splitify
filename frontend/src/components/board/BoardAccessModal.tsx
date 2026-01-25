@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal, Text, Stack, Select } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { UserSearchSelect } from '@/commons/UserSearchSelect';
 import { postRequest, putRequest } from '@/utils/net';
@@ -20,10 +21,10 @@ interface BoardAccessModalProps {
     initialPermission?: BoardPermission | null;
 }
 
-export const BoardAccessModal = ({ 
-    open, 
-    onClose, 
-    board, 
+export const BoardAccessModal = ({
+    open,
+    onClose,
+    board,
     mode = 'add',
     initialUserId = null,
     initialUsername = null,
@@ -32,15 +33,16 @@ export const BoardAccessModal = ({
     const [selectedUserId, setSelectedUserId] = useState<string | null>(initialUserId);
     const [selectedPermission, setSelectedPermission] = useState<string | null>(initialPermission || BoardPermission.VIEWER);
     const { setLoading } = useLoading();
-    
+    const isMobile = useMediaQuery('(max-width: 768px)');
+
     useEffect(() => {
         if (open) {
             setSelectedUserId(initialUserId);
             setSelectedPermission(initialPermission || BoardPermission.VIEWER);
         }
     }, [open, initialUserId, initialPermission]);
-    
-    
+
+
     const handleClose = () => {
         if (mode === 'add') {
             setSelectedUserId(null);
@@ -48,8 +50,8 @@ export const BoardAccessModal = ({
         setSelectedPermission(BoardPermission.VIEWER);
         onClose();
     };
-    
-    
+
+
     const handleSubmit = async () => {
         if (!selectedUserId && mode === 'add') {
             notifications.show({
@@ -59,7 +61,7 @@ export const BoardAccessModal = ({
             });
             return;
         }
-        
+
         if (!selectedPermission) {
             notifications.show({
                 title: 'Errore',
@@ -68,16 +70,16 @@ export const BoardAccessModal = ({
             });
             return;
         }
-        
+
         setLoading(true);
-        
+
         try {
-            
+
             if (mode === 'update' && initialUserId) {
                 await putRequest(`boards/${board.id}/access/${initialUserId}`, {
                     body: { permission: selectedPermission }
                 });
-                
+
                 notifications.show({
                     title: 'Permesso aggiornato',
                     message: 'Il permesso è stato aggiornato con successo!',
@@ -88,7 +90,7 @@ export const BoardAccessModal = ({
                 await postRequest(`boards/${board.id}/access`, {
                     body: { userId: selectedUserId, permission: selectedPermission }
                 });
-                
+
                 notifications.show({
                     title: 'Permesso aggiunto',
                     message: 'L\'utente è stato aggiunto alla board con successo!',
@@ -96,7 +98,7 @@ export const BoardAccessModal = ({
                     icon: <IconCircleCheck size={18} />
                 });
             }
-            
+
             handleClose();
         } catch (err: any) {
             notifications.show({
@@ -108,7 +110,7 @@ export const BoardAccessModal = ({
             setLoading(false);
         }
     };
-    
+
     return (
         <Modal
             opened={open}
@@ -118,7 +120,8 @@ export const BoardAccessModal = ({
                     {mode === 'add' ? 'Aggiungi accesso alla board' : 'Modifica permesso di accesso'}
                 </Text>
             }
-            centered
+            centered={!isMobile}
+            fullScreen={isMobile}
             size="md"
             padding="lg"
             transitionProps={modalTransitionProps}
@@ -126,14 +129,14 @@ export const BoardAccessModal = ({
             styles={modalStyles}
         >
             <Text size="sm" mt="sm" ml={3}>
-                {mode === 'add' 
+                {mode === 'add'
                     ? 'Assegna ad un utente i permessi di accesso'
                     : 'Modifica il livello di permesso per questo utente.'}
             </Text>
             <ModalPaper>
                 <Stack gap="sm">
 
-                    
+
                     {mode === 'add' ? (
                         <UserSearchSelect
                             onUserSelect={setSelectedUserId}
@@ -147,7 +150,7 @@ export const BoardAccessModal = ({
                             Utente: <Text span c="blue.4">{initialUsername}</Text>
                         </Text>
                     )}
-                    
+
                     <Select
                         label="Livello di permesso"
                         placeholder="Seleziona un livello di permesso"

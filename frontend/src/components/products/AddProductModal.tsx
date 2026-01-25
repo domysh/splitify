@@ -1,5 +1,5 @@
 import { postRequest } from "@/utils/net";
-import { Avatar, Badge, Box, Checkbox, Divider, Group, Modal, MultiSelect, Paper, Select, Space, Text, TextInput } from "@mantine/core";
+import { Avatar, Badge, Box, Divider, Group, Modal, MultiSelect, Paper, Select, Space, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useMemo, useState } from "react";
@@ -30,47 +30,37 @@ export interface ProductFormValues {
 export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProductModalProps) => {
     const { setLoading } = useLoading();
     const isMobile = useMobile()
-    const [acknowledgeNoPayer, setAcknowledgeNoPayer] = useState(false);
     const [memberSearchValue, setMemberSearchValue] = useState('');
-    
+
     const formAdd = useForm<ProductFormValues>({
         initialValues: {
             name: "",
             price: new Big(0),
-            memberId: "",  
-            categories: [],  
+            memberId: "",
+            categories: [],
         },
         validate: {
-            name: (val) => val == ""? "Il nome è obbligatorio" : null,
-            price: (val) => val.lt(0)? "Il prezzo non può essere negativo!" : null,
+            name: (val) => val == "" ? "Il nome è obbligatorio" : null,
+            price: (val) => val.lt(0) ? "Il prezzo non può essere negativo!" : null,
             memberId: (val) => {
-                
-                if (!acknowledgeNoPayer && !val) {
-                    return "Seleziona un pagante o spunta 'Non specificare chi ha pagato'";
+                if (!val) {
+                    return "Seleziona un pagante";
                 }
                 return null;
             }
         },
     });
-    
+
     useEffect(() => {
         formAdd.reset();
-        setAcknowledgeNoPayer(false);
     }, [open]);
-    
-    
-    useEffect(() => {
-        if (formAdd.values.memberId) {
-            setAcknowledgeNoPayer(false);
-        }
-    }, [formAdd.values.memberId]);
-    
-    
+
+
     const handleSearchFocus = () => {
         setMemberSearchValue('');
     };
 
-    
+
     const memberOptions = useMemo(() => [
         { value: '', label: '' },
         ...board.members.map((member) => ({
@@ -78,62 +68,61 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
             label: member.name,
         }))
     ], [board.members]);
-    
-    
-    const categoryOptions = useMemo(() => 
+
+
+    const categoryOptions = useMemo(() =>
         board.categories
             .sort((a, b) => a.order - b.order)
             .map((category) => ({
                 value: category.id,
                 label: category.name,
             })),
-    [board.categories]);
-    
+        [board.categories]);
+
     const handleSubmit = (values: ProductFormValues) => {
         setLoading(true);
-        postRequest("boards/"+board.id+"/products", {
-            body: { 
-                ...values, 
+        postRequest("boards/" + board.id + "/products", {
+            body: {
+                ...values,
                 price: Math.floor(values.price.mul(100).toNumber()),
                 memberId: values.memberId || undefined
             }
         })
-        .then((res) => {
-            if (res.id){
-                notifications.show({
-                    title: "Spesa creata",
-                    message: "La spesa è stato creato con successo",
-                    color: "green",
-                    icon: <IconCircleCheck size={20} />
-                });
-                if (closeOnEnd) {
-                    onClose();
-                }else{
-                    formAdd.reset();
-                    setAcknowledgeNoPayer(false);
+            .then((res) => {
+                if (res.id) {
+                    notifications.show({
+                        title: "Spesa creata",
+                        message: "La spesa è stato creato con successo",
+                        color: "green",
+                        icon: <IconCircleCheck size={20} />
+                    });
+                    if (closeOnEnd) {
+                        onClose();
+                    } else {
+                        formAdd.reset();
+                    }
+                } else {
+                    notifications.show({
+                        title: "Errore inaspettato",
+                        message: res.detail ?? res ?? "Errore sconosciuto",
+                        color: "red"
+                    });
                 }
-            } else {
-                notifications.show({
-                    title: "Errore inaspettato",
-                    message: res.detail??res??"Errore sconosciuto",
-                    color: "red"
-                });
-            }
-        }).finally(() => {
-            setLoading(false);
-        });
+            }).finally(() => {
+                setLoading(false);
+            });
     };
-    
-    
+
+
     const selectedMember = useMemo(() => {
         if (!formAdd.values.memberId) return null;
         return board.members.find(m => m.id === formAdd.values.memberId);
     }, [formAdd.values.memberId, board.members]);
-    
+
     return (
-        <Modal 
-            opened={open} 
-            onClose={onClose} 
+        <Modal
+            opened={open}
+            onClose={onClose}
             closeOnClickOutside={false}
             title={
                 <Group gap="xs">
@@ -147,9 +136,9 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
             transitionProps={modalTransitionProps}
         >
             <Space h="md" />
-            <Paper 
-                p="md" 
-                radius="md" 
+            <Paper
+                p="md"
+                radius="md"
                 style={{
                     background: 'rgba(26, 26, 32, 0.7)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -159,7 +148,7 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                     <Group align="flex-start" gap={24}>
                         <Box style={{ flex: 1 }}>
                             <TextInput
-                                label={<Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Nome Spesa <span style={{color: "#ff6b6b"}}>*</span></Text>}
+                                label={<Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Nome Spesa <span style={{ color: "#ff6b6b" }}>*</span></Text>}
                                 placeholder="Inserisci il nome della spesa"
                                 required
                                 data-autofocus
@@ -169,7 +158,7 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                 styles={inputStyles}
                             />
                             <Space h="md" />
-                            <Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Prezzo <span style={{color: "#ff6b6b"}}>*</span></Text>
+                            <Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Prezzo <span style={{ color: "#ff6b6b" }}>*</span></Text>
                             <Group align="center">
                                 <AdvancedNumberInput
                                     min={0}
@@ -179,11 +168,11 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                     styles={inputStyles}
                                 />
                             </Group>
-                            
+
                             <Space h="md" />
                             <Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Categorie</Text>
                             <MultiSelect
-                                placeholder={formAdd.values.categories.length === 0?"Pagano tutti i membri":"Seleziona altre categorie"}
+                                placeholder={formAdd.values.categories.length === 0 ? "Pagano tutti i membri" : "Seleziona altre categorie"}
                                 data={categoryOptions}
                                 value={formAdd.values.categories}
                                 onChange={(value) => formAdd.setFieldValue("categories", value)}
@@ -193,76 +182,22 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                 styles={dropdownStyles}
                                 hidePickedOptions
                             />
-                            
-                            <Space h="md" />
-                            <Text fw={500} size="sm" mb={5}>
-                                Chi ha pagato?
-                            </Text>
-                                                        
-                            {!acknowledgeNoPayer && (
-                                <Select
-                                    label="Pagato da"
-                                    placeholder="Seleziona chi ha pagato"
-                                    data={memberOptions}
-                                    clearable
-                                    searchable
-                                    searchValue={memberSearchValue}
-                                    onSearchChange={setMemberSearchValue}
-                                    onFocus={handleSearchFocus}
-                                    disabled={acknowledgeNoPayer}
-                                    {...formAdd.getInputProps('memberId')}
-                                    styles={dropdownStyles}
-                                    required
-                                />
-                            )}
 
-                            <Checkbox
-                                label={
-                                    <Text size="sm" style={{ fontWeight: 500 }}>
-                                        Non specificare chi ha pagato questa spesa
-                                    </Text>
-                                }
-                                checked={acknowledgeNoPayer}
-                                onChange={(e) => {
-                                    const isChecked = e.currentTarget.checked;
-                                    setAcknowledgeNoPayer(isChecked);
-                                    
-                                    if (isChecked) {
-                                        formAdd.setFieldValue("memberId", "");
-                                    }
-                                }}
-                                mt="sm"
-                                styles={{
-                                    input: {
-                                        cursor: 'pointer',
-                                        backgroundColor: acknowledgeNoPayer ? 'rgba(255, 169, 77, 0.2)' : undefined
-                                    },
-                                    label: {
-                                        cursor: 'pointer'
-                                    }
-                                }}
+                            <Space h="md" />
+
+                            <Select
+                                label="Pagato da"
+                                placeholder="Seleziona chi ha pagato"
+                                data={memberOptions}
+                                clearable
+                                searchable
+                                searchValue={memberSearchValue}
+                                onSearchChange={setMemberSearchValue}
+                                onFocus={handleSearchFocus}
+                                {...formAdd.getInputProps('memberId')}
+                                styles={dropdownStyles}
+                                required
                             />
-                            
-                            {acknowledgeNoPayer ? (
-                                <Paper
-                                    p="xs"
-                                    mt="xs"
-                                    withBorder
-                                    radius="md"
-                                    style={{
-                                        background: 'rgba(255, 169, 77, 0.05)',
-                                        borderColor: 'rgba(255, 169, 77, 0.3)'
-                                    }}
-                                >
-                                    <Text size="sm" c="orange.6" fw={500}>
-                                        Hai scelto di non specificare chi ha pagato
-                                    </Text>
-                                    <Text size="xs" c="orange.7" mt={5}>
-                                        Non specificare chi ha pagato rende difficile tracciare correttamente i saldi.
-                                        Dovrai registrare il pagamento manualmente in seguito tramite "Trasferisci denaro".
-                                    </Text>
-                                </Paper>
-                            ) : null}
                         </Box>
                         <Paper p="md" radius="md" className="paper-element-box">
                             <Box style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -282,7 +217,7 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                     </Badge>
                                 </Box>
                             </Box>
-                            
+
                             {formAdd.values.categories.length > 0 && (
                                 <>
                                     <Divider my="sm" variant="dashed" />
