@@ -122,27 +122,29 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     });
 
     for (const transaction of transactions) {
-      if (transaction.cancelled) continue;
+      if (!transaction.cancelled) {
+        // Reverse effects for the OTHER member if they exist
+        if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
+          await Member.findByIdAndUpdate(
+            transaction.fromMemberId,
+            { $inc: { paid: -transaction.amount } }
+          );
+        }
 
-      // Reverse effects for the OTHER member if they exist
-      if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
-        await Member.findByIdAndUpdate(
-          transaction.fromMemberId,
-          { $inc: { paid: -transaction.amount } }
-        );
+        if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
+          await Member.findByIdAndUpdate(
+            transaction.toMemberId,
+            { $inc: { paid: transaction.amount } }
+          );
+        }
+
+        // If associated with a product, delete the product
+        if (transaction.productId) {
+          await Product.findByIdAndDelete(transaction.productId);
+        }
+
       }
 
-      if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
-        await Member.findByIdAndUpdate(
-          transaction.toMemberId,
-          { $inc: { paid: transaction.amount } }
-        );
-      }
-
-      // If associated with a product, delete the product
-      if (transaction.productId) {
-        await Product.findByIdAndDelete(transaction.productId);
-      }
 
       // Delete the transaction
       await Transaction.findByIdAndDelete(transaction._id);
