@@ -139,7 +139,7 @@ export interface CheckLoginResponse {
   token?: JwtPayload;
 }
 
-export const verifyToken = async (token: string): Promise<CheckLoginResponse | null> => {
+export const verifyToken = async (token: string, currentIp?: string): Promise<CheckLoginResponse | null> => {
   try {
     const secret = await getAppSecret();
     const decoded = jwtValidator(jwt.verify(token, secret, {
@@ -153,6 +153,30 @@ export const verifyToken = async (token: string): Promise<CheckLoginResponse | n
     if (!session || !user) return null;
 
     session.lastUsed = new Date();
+
+    if (currentIp && session.ip !== currentIp && currentIp !== 'Sconosciuto') {
+        session.ip = currentIp;
+        
+        if (currentIp !== '127.0.0.1' && currentIp !== '::1') {
+            fetch(`http://ip-api.com/json/${currentIp}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const newLocation = `${data.city}, ${data.country}`;
+                        if (session.location !== newLocation) {
+                            User.updateOne(
+                                { _id: user._id, "sessions.sessionId": session.sessionId },
+                                { $set: { "sessions.$.location": newLocation } }
+                            ).catch(err => console.error("Error updating location in background:", err));
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching updated IP location:", err));
+        } else {
+            session.location = 'Sconosciuto';
+        }
+    }
+
     await user?.save();
 
     return {
@@ -167,9 +191,10 @@ export const verifyToken = async (token: string): Promise<CheckLoginResponse | n
 export const checkLogin = async (req: AuthRequest | string | undefined): Promise<CheckLoginResponse> => {
   if (!req) return {};
   const token = (typeof req === 'string') ? req : req.headers.authorization?.split(' ')[1];
+  const ip = (typeof req === 'string') ? undefined : req.ip;
   if (!token) return {};
   try {
-    const payload = await verifyToken(token);
+    const payload = await verifyToken(token, ip);
     if (!payload) return {};
     return payload
   } catch (error) {
