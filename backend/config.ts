@@ -15,6 +15,9 @@ export const MONGO_URL =
         : "mongodb://mongo:27017/splitify");
 export const DEFAULT_PSW = process.env.DEFAULT_PSW;
 export const JWT_ALGORITHM = "HS256";
+export const RP_ID = process.env.RP_ID || "localhost";
+export const RP_ORIGIN = process.env.RP_ORIGIN || (DEBUG ? "http://localhost:5173" : `http://localhost:${process.env.PORT || 8080}`);
+export const RP_NAME = "Splitify";
 
 export const defaultOption: mongoose.SchemaOptions = {
     toJSON: {

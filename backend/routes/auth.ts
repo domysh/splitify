@@ -6,6 +6,14 @@ import {
     refreshToken,
     registrationInfo,
     setRegistrationInfo,
+    passkeyRegisterStart,
+    passkeyRegisterVerify,
+    passkeyLoginStart,
+    passkeyLoginVerify,
+    deleteSession,
+    deletePasskey,
+    renamePasskey,
+    deleteCurrentSession
 } from "../controllers/auth";
 import { authenticate, hasRole } from "../middleware/auth";
 import { voidReturn as r } from "../utils";
@@ -30,5 +38,15 @@ router.put(
     r(validateSetRegistrationMode),
     r(setRegistrationInfo),
 );
+
+router.delete("/logout", authenticate, r(deleteCurrentSession));
+router.delete("/sessions/:sessionId", authenticate, r(deleteSession));
+
+router.post("/passkey/register/options", authenticate, r(passkeyRegisterStart));
+router.post("/passkey/register/verify", authenticate, r(passkeyRegisterVerify));
+router.post("/passkey/login/options", r(passkeyLoginStart));
+router.post("/passkey/login/verify", r(passkeyLoginVerify));
+router.delete("/passkeys/:id", authenticate, r(deletePasskey));
+router.put("/passkeys/:id/name", authenticate, r(renamePasskey));
 
 export default router;

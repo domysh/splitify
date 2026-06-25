@@ -1,7 +1,7 @@
-import { useRouteFunctions } from "@/utils/store";
 import { lazy } from "react";
 import { NavLink } from "@mantine/core";
 import { IconDashboard, IconHome, IconLogout, IconSettings } from "@tabler/icons-react";
+import { useNavigate } from "react-router";
 import { useCurrentUser } from "@/utils/hooks";
 const UserInfoDisplay = lazy(() => import('@/commons/UserInfoDisplay'))
 
@@ -13,7 +13,7 @@ export interface BurgerSectionProps {
 }
 
 const BurgerSection = ({ closeNavbar, handleLogout, token, pathLocation }:BurgerSectionProps) => {
-  const navigate = useRouteFunctions(args => args.navigate);
+  const navigate = useNavigate();
   const currentUser = useCurrentUser()
 
     return <>

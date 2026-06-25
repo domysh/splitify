@@ -63,7 +63,7 @@ export const usePermissions = (board?: board) => {
 export const useCurrentUser = () => {
     const me = meQuery()
     return useMemo(() => {
-        if (me.isSuccess && !me.isFetching) {
+        if (me.data) {
             const role = me.data.role
             return {
                 ...me.data,
@@ -78,9 +78,14 @@ export const useCurrentUser = () => {
                 role: Role.GUEST,
                 isAdmin: false,
                 isLoading: true,
+                sessions: undefined,
+                pinnedBoards: undefined,
+                boardUsage: undefined,
+                passkeys: undefined,
+                currentSessionId: undefined,
             }
         }
-    }, [me.isFetching])
+    }, [me.data, me.isLoading])
 }
 
 

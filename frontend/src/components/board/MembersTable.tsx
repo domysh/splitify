@@ -3,12 +3,15 @@ import { board } from "@/utils/types";
 import { Avatar, Box, Table, Text, ScrollArea, Space, Card, Group, Divider, Stack, SimpleGrid } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { putRequest } from "@/utils/net";
 import { BalanceIcon } from "@/commons/BalanceIcon";
 import { usePermissions } from "@/utils/hooks";
 import { CategoryCheckbox } from "@/commons/CategoryCheckbox";
 import { formatPrice, getInitials } from "@/utils/formatters";
+import { MemberDetailsModal } from "@/components/members/MemberDetailsModal";
+import { IconInfoCircle } from "@tabler/icons-react";
+import { ActionIcon, Center } from "@mantine/core";
 
 
 interface CategoryToggleVariables {
@@ -28,6 +31,7 @@ export interface MembersTableProps {
 export const MembersTable = ({ board }: MembersTableProps) => {
     const queryClient = useQueryClient();
     const isMobile = useMobile();
+    const [detailsMemberId, setDetailsMemberId] = useState<string | null>(null);
 
     const { canEdit } = usePermissions(board);
     const userDebitCounter = useCalculateDebits(board);
@@ -119,12 +123,12 @@ export const MembersTable = ({ board }: MembersTableProps) => {
             return (
                 <Table.Tr key={memb.id}>
                     <Table.Td>
-                        <Box style={{ float: "left", paddingLeft: "10px" }}>
+                        <Center>
                             <BalanceIcon balance={balance} />
-                        </Box>
+                        </Center>
                     </Table.Td>
                     <Table.Td>
-                        <Box display="flex" style={{ gap: 10 }}>
+                        <Group gap="sm" wrap="nowrap" align="center">
                             <Avatar
                                 radius="xl"
                                 size="sm"
@@ -133,8 +137,11 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                             >
                                 {getInitials(memb.name)}
                             </Avatar>
-                            <Text fw={500}>{memb.name}</Text>
-                        </Box>
+                            <Text fw={500} size="sm">{memb.name}</Text>
+                            <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => setDetailsMemberId(memb.id)}>
+                                <IconInfoCircle size={16} />
+                            </ActionIcon>
+                        </Group>
                     </Table.Td>
                     {sortedCategories.map((cat) => (
                         <Table.Td key={cat.id}>
@@ -165,8 +172,9 @@ export const MembersTable = ({ board }: MembersTableProps) => {
 
     if (isMobile) {
         return (
-            <Box mt="md">
-                <Stack gap="md">
+            <>
+                <Box mt="md">
+                    <Stack gap="md">
                     {board.members.map((memb) => {
                         const debit = userDebitCounter.find((ele) => ele.id === memb.id)?.price ?? 0;
                         const balance = memb.paid - debit;
@@ -174,7 +182,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                         return (
                             <Card key={memb.id} withBorder p="md">
                                 <Group mb="xs">
-                                    <Group gap="sm">
+                                    <Group gap="sm" align="center">
                                         <BalanceIcon balance={balance} />
                                         <Avatar
                                             radius="xl"
@@ -184,7 +192,10 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                                         >
                                             {getInitials(memb.name)}
                                         </Avatar>
-                                        <Text fw={500}>{memb.name}</Text>
+                                        <Text fw={500} size="md">{memb.name}</Text>
+                                        <ActionIcon variant="subtle" color="blue" size="md" onClick={() => setDetailsMemberId(memb.id)}>
+                                            <IconInfoCircle size={20} />
+                                        </ActionIcon>
                                     </Group>
                                 </Group>
 
@@ -231,7 +242,14 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                     })}
                 </Stack>
                 <Space h="md" />
-            </Box>
+                </Box>
+                <MemberDetailsModal 
+                    board={board}
+                    memberId={detailsMemberId}
+                    open={!!detailsMemberId}
+                    onClose={() => setDetailsMemberId(null)}
+                />
+            </>
         );
     }
 
@@ -247,8 +265,8 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                 >
                     <Table.Thead>
                         <Table.Tr style={{ background: 'rgba(20, 22, 40, 0.7)' }}>
-                            <Table.Th style={{ textWrap: "nowrap" }}>Status</Table.Th>
-                            <Table.Th style={{ textWrap: "nowrap" }}>Membro</Table.Th>
+                            <Table.Th style={{ textWrap: "nowrap", width: 60, textAlign: 'center' }}>Status</Table.Th>
+                            <Table.Th style={{ textWrap: "nowrap", minWidth: 200 }}>Membro</Table.Th>
                             {sortedCategories.map((cat) => (
                                 <Table.Th style={{ textWrap: "nowrap" }} key={cat.id}>{cat.name}</Table.Th>
                             ))}
@@ -261,7 +279,12 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                 </Table>
                 <Space h="sm" />
             </ScrollArea>
-
+            <MemberDetailsModal 
+                board={board}
+                memberId={detailsMemberId}
+                open={!!detailsMemberId}
+                onClose={() => setDetailsMemberId(null)}
+            />
         </>
     );
 };

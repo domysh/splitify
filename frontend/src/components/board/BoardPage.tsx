@@ -1,12 +1,12 @@
 import { useCalculatePaylist, useCurrentUser, useSmallScreen } from "@/utils/hooks"
 import { boardQuery } from "@/utils/queries"
-import { Box, Button, Loader, Menu, SegmentedControl, Tooltip } from "@mantine/core"
-import { Paper, Title, Text, Group } from "@mantine/core"
+import { Box, Button, Loader, Menu, SegmentedControl, Tooltip, Avatar } from "@mantine/core"
+import { Paper, Title, Text, Group, Popover, Stack } from "@mantine/core"
 import { useEffect, useMemo } from "react"
 import { useNavigate, useParams } from "react-router"
 import { BackButton, OptionButton } from "@/commons/Buttons"
 import { useState } from "react"
-import { IconCategory, IconCash, IconExchange } from "@tabler/icons-react";
+import { IconCategory, IconCash, IconExchange, IconSpy } from "@tabler/icons-react";
 import { IconUsersGroup } from "@tabler/icons-react";
 import { IconShoppingBag } from "@tabler/icons-react";
 import { IconSettings } from "@tabler/icons-react";
@@ -27,7 +27,7 @@ import { PaymentListModal } from "@/components/board/paylist/PaymentListModal"
 import { TransactionsModal } from "@/components/board/TransactionsModal"
 import { IconHistory } from "@tabler/icons-react"
 import { usePermissions } from "@/utils/hooks";
-import { joinBoardRoom, leaveBoardRoom } from "@/utils/socket"
+import { joinBoardRoom, leaveBoardRoom, socket } from "@/utils/socket"
 import { useQueryClient } from "@tanstack/react-query"
 import { formatPrice } from "@/utils/formatters"
 
@@ -60,11 +60,18 @@ const BoardPage = () => {
     const [transferModalOpen, setTransferModalOpen] = useState(false);
     const [paymentListModalOpen, setPaymentListModalOpen] = useState(false);
     const [transactionsModalOpen, setTransactionsModalOpen] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<{id: string, username: string, color?: string, isAnonymous?: boolean}[]>([]);
 
     useEffect(() => {
         if (boardId) {
             joinBoardRoom(boardId);
+            const handlePresence = (data: { onlineUsers: {id: string, username: string, color?: string, isAnonymous?: boolean}[] }) => {
+                setOnlineUsers(data.onlineUsers);
+            };
+            socket.on("presenceUpdate", handlePresence);
+
             return () => {
+                socket.off("presenceUpdate", handlePresence);
                 leaveBoardRoom(boardId);
                 queryClient.removeQueries({
                     queryKey: ['boards', boardId],
@@ -292,6 +299,14 @@ const BoardPage = () => {
     ), [setTransactionsModalOpen, isSmallScreen]);
 
 
+    const sortedOnlineUsers = useMemo(() => {
+        return [...onlineUsers].sort((a, b) => {
+            if (a.isAnonymous && !b.isAnonymous) return 1;
+            if (!a.isAnonymous && b.isAnonymous) return -1;
+            return 0;
+        });
+    }, [onlineUsers]);
+
     if (!isMounted) {
         return null;
     }
@@ -381,10 +396,54 @@ const BoardPage = () => {
                         <Title order={2} style={{ color: '#f0f0ff' }}>{board.name}</Title>
                         {!board.isPublic && (
                             <Tooltip label="Board privata - Solo utenti autenticati" position="right">
-                                <Box>
+                                <Box mt={4}>
                                     <IconLock size={14} color="#ffa94d" />
                                 </Box>
                             </Tooltip>
+                        )}
+                        {onlineUsers.length > 0 && (
+                            <Tooltip.Group openDelay={300} closeDelay={100}>
+                                <Avatar.Group spacing="sm" ml="sm">
+                                    {sortedOnlineUsers.slice(0, 3).map(user => (
+                                        <Tooltip key={user.id} label={`${user.username} (Online)`} withArrow>
+                                            <Avatar 
+                                                radius="xl" 
+                                                size="sm" 
+                                                color={user.color || "green"} 
+                                                style={{ border: `2px solid ${user.color ? `var(--mantine-color-${user.color}-filled)` : '#4CAF50'}` }}
+                                            >
+                                                {user.isAnonymous ? <IconSpy size={16} /> : user.username.substring(0, 2).toUpperCase()}
+                                            </Avatar>
+                                        </Tooltip>
+                                    ))}
+                                    {sortedOnlineUsers.length > 3 && (
+                                        <Popover width={250} position="bottom" withArrow shadow="md">
+                                            <Popover.Target>
+                                                <Avatar radius="xl" size="sm" color="gray" style={{ border: '2px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                                                    +{sortedOnlineUsers.length - 3}
+                                                </Avatar>
+                                            </Popover.Target>
+                                            <Popover.Dropdown style={{ background: 'rgba(30, 31, 48, 0.95)', borderColor: 'var(--primary-border)' }}>
+                                                <Text size="sm" fw={600} mb="xs">Tutti gli utenti online</Text>
+                                                <Stack gap="xs">
+                                                    {sortedOnlineUsers.map(user => (
+                                                        <Group key={user.id} gap="sm">
+                                                            <Avatar 
+                                                                radius="xl" 
+                                                                size="sm" 
+                                                                color={user.color || "green"} 
+                                                            >
+                                                                {user.isAnonymous ? <IconSpy size={14} /> : user.username.substring(0, 2).toUpperCase()}
+                                                            </Avatar>
+                                                            <Text size="sm" fw={500}>{user.username}</Text>
+                                                        </Group>
+                                                    ))}
+                                                </Stack>
+                                            </Popover.Dropdown>
+                                        </Popover>
+                                    )}
+                                </Avatar.Group>
+                            </Tooltip.Group>
                         )}
                     </Group>
                     <Group mt={8} gap={16}>

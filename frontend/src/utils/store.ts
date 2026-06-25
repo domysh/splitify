@@ -61,15 +61,7 @@ export const useIsLoading = () => {
   return useLoadingStore((state) => state.loading)
 }
 
-type NavigateStore = {
-  navigate: ((to: string, options?: object) => void)
-  setNavigate: (navigate: (to: string, options?: object) => void) => void
-}
 
-export const useRouteFunctions = create<NavigateStore>()((set) => ({
-  navigate: (_: string) => { },
-  setNavigate: (navigate) => set({ navigate })
-}))
 
 type AuthState = {
   isAuthenticated: boolean;

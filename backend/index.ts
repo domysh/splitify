@@ -68,7 +68,7 @@ const initAdminUser = async () => {
 };
 
 mongoose
-    .connect(MONGO_URL)
+    .connect(MONGO_URL, { family: 4 })
     .then(() => {
         console.log("Connected to the database");
         initAdminUser().then(() => {

@@ -71,6 +71,11 @@ export interface UserSession {
   createdAt: Date;
   expiresAt: Date;
   lastUsed: Date;
+  os?: LimitString;
+  browser?: LimitString;
+  device?: LimitString;
+  ip?: LimitString;
+  location?: LimitString;
 }
 
 
@@ -81,7 +86,22 @@ export interface User {
   password: LimitString;
   role: Role;
   sessions: UserSession[];
+  passkeys?: PasskeyCredential[];
+  pinnedBoards?: ObjectIdType[] | ObjectId[];
+  boardUsage?: Record<string, number>;
+  passkeyPromptDismissed?: boolean;
 }
+
+export interface PasskeyCredential {
+  id: string; // Credential ID (base64url encoded)
+  name?: LimitString;
+  createdAt?: Date;
+  publicKey: Uint8Array;
+  counter: number;
+  transports?: AuthenticatorTransportFuture[];
+}
+
+export type AuthenticatorTransportFuture = "ble" | "internal" | "nfc" | "usb" | "cable" | "hybrid" | "smart-card";
 
 export interface Env {
   _id?: ObjectId;

@@ -30,11 +30,13 @@ import {
 } from "@tabler/icons-react";
 import { EditHeader } from "@/commons/EditHeader";
 import { ResponsivePager } from "@/commons/ResponsivePager";
+import { transactionsQuery } from "@/utils/queries";
 
 export interface ProductEdits {
     [id: string]: {
         name?: string;
         price?: number;
+        memberId?: string;
     };
 }
 
@@ -58,6 +60,7 @@ export const ProductSettingsModal = ({
     const [savingChanges, setSavingChanges] = useState<boolean>(false);
     const isMobile = useMobile();
     const [currentPage, setCurrentPage] = useState<number>(1);
+    const { data: transactions } = transactionsQuery(board.id);
 
     useEffect(() => {
         setEdits({});
@@ -92,13 +95,19 @@ export const ProductSettingsModal = ({
                 const invalidPrice =
                     newDrafts[prod.id]?.price == prod.price ||
                     newDrafts[prod.id]?.price == null;
+                const t = transactions?.find(x => x.productId === prod.id);
+                const invalidMember =
+                    newDrafts[prod.id]?.memberId == t?.fromMemberId ||
+                    newDrafts[prod.id]?.memberId == null;
+
                 if (invalidName) delete newDrafts[prod.id].name;
                 if (invalidPrice) delete newDrafts[prod.id].price;
-                if (invalidName && invalidPrice) delete newDrafts[prod.id];
+                if (invalidMember) delete newDrafts[prod.id].memberId;
+                if (invalidName && invalidPrice && invalidMember) delete newDrafts[prod.id];
             });
             return newDrafts;
         },
-        [board.products],
+        [board.products, transactions],
     );
 
     const handleSaveChanges = useCallback((): void => {
@@ -153,6 +162,18 @@ export const ProductSettingsModal = ({
         [clearDrafts],
     );
 
+    const handleMemberChange = useCallback(
+        (id: string, value: string): void => {
+            setEdits((prevEdits) => {
+                const newEdits = { ...prevEdits };
+                if (!newEdits[id]) newEdits[id] = {};
+                newEdits[id].memberId = value;
+                return clearDrafts(newEdits);
+            });
+        },
+        [clearDrafts],
+    );
+
     const resetEdits = useCallback(() => {
         setEdits({});
         notifications.show({
@@ -172,6 +193,8 @@ export const ProductSettingsModal = ({
                     animateTable={animateTable}
                     handleNameChange={handleNameChange}
                     handlePriceChange={handlePriceChange}
+                    handleMemberChange={handleMemberChange}
+                    transaction={transactions?.find(t => t.productId === prod.id)}
                     edits={edits}
                     board={board}
                 />
@@ -181,6 +204,8 @@ export const ProductSettingsModal = ({
             animateTable,
             handleNameChange,
             handlePriceChange,
+            handleMemberChange,
+            transactions,
             edits,
             board,
         ],
@@ -196,6 +221,8 @@ export const ProductSettingsModal = ({
                     animateTable={animateTable}
                     handleNameChange={handleNameChange}
                     handlePriceChange={handlePriceChange}
+                    handleMemberChange={handleMemberChange}
+                    transaction={transactions?.find(t => t.productId === prod.id)}
                     edits={edits}
                     board={board}
                 />
@@ -205,6 +232,8 @@ export const ProductSettingsModal = ({
             animateTable,
             handleNameChange,
             handlePriceChange,
+            handleMemberChange,
+            transactions,
             edits,
             board,
         ],

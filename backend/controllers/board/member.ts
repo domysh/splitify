@@ -102,6 +102,7 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
 export const deleteMember = async (req: AuthRequest, res: Response) => {
   try {
     const { id, member_id } = req.params;
+    const { transferToMemberId } = req.query;
 
     const userId = req.user?.id;
     const [board, perm] = await getAuthenticatedBoard(id, userId, BoardPermission.EDITOR);
@@ -112,48 +113,71 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
     const memberObjectId = new ObjectId(member_id);
     const boardObjectId = new ObjectId(id);
 
-    // Find all transactions involving this member
-    const transactions = await Transaction.find({
-      boardId: boardObjectId as any,
-      $or: [
-        { fromMemberId: memberObjectId },
-        { toMemberId: memberObjectId }
-      ]
-    });
+    if (transferToMemberId) {
+      const transferObjectId = new ObjectId(transferToMemberId as string);
+      
+      const newMember = await Member.findOne({ _id: transferObjectId, boardId: boardObjectId as any });
+      if (!newMember) return res.status(400).json({ message: 'Transfer member not found' });
+      
+      const oldMember = await Member.findOne({ _id: memberObjectId, boardId: boardObjectId as any });
+      if (!oldMember) return res.status(400).json({ message: 'Member not found' });
 
-    for (const transaction of transactions) {
-      if (!transaction.cancelled) {
-        // Reverse effects for the OTHER member if they exist
-        if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
-          await Member.findByIdAndUpdate(
-            transaction.fromMemberId,
-            { $inc: { paid: -transaction.amount } }
-          );
+      await Member.findByIdAndUpdate(newMember._id, { $inc: { paid: oldMember.paid } });
+
+      const transactions = await Transaction.find({
+        boardId: boardObjectId as any,
+        $or: [ { fromMemberId: memberObjectId }, { toMemberId: memberObjectId } ]
+      });
+
+      for (const t of transactions) {
+        let newFrom = t.fromMemberId?.toString() === memberObjectId.toString() ? newMember._id : t.fromMemberId;
+        let newTo = t.toMemberId?.toString() === memberObjectId.toString() ? newMember._id : t.toMemberId;
+        
+        if (newFrom?.toString() === newTo?.toString() && newFrom != null) {
+          await Transaction.findByIdAndDelete(t._id);
+        } else {
+          await Transaction.findByIdAndUpdate(t._id, { fromMemberId: newFrom, toMemberId: newTo });
         }
-
-        if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
-          await Member.findByIdAndUpdate(
-            transaction.toMemberId,
-            { $inc: { paid: transaction.amount } }
-          );
-        }
-
-        // If associated with a product, delete the product
-        if (transaction.productId) {
-          await Product.findByIdAndDelete(transaction.productId);
-        }
-
       }
 
+      await Member.findByIdAndDelete(memberObjectId);
+    } else {
+      const transactions = await Transaction.find({
+        boardId: boardObjectId as any,
+        $or: [
+          { fromMemberId: memberObjectId },
+          { toMemberId: memberObjectId }
+        ]
+      });
 
-      // Delete the transaction
-      await Transaction.findByIdAndDelete(transaction._id);
+      for (const transaction of transactions) {
+        if (!transaction.cancelled) {
+          if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
+            await Member.findByIdAndUpdate(
+              transaction.fromMemberId,
+              { $inc: { paid: -transaction.amount } }
+            );
+          }
+
+          if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
+            await Member.findByIdAndUpdate(
+              transaction.toMemberId,
+              { $inc: { paid: transaction.amount } }
+            );
+          }
+
+          if (transaction.productId) {
+            await Product.findByIdAndDelete(transaction.productId);
+          }
+        }
+        await Transaction.findByIdAndDelete(transaction._id);
+      }
+
+      await Member.findOneAndDelete({
+        _id: memberObjectId,
+        boardId: boardObjectId as any
+      });
     }
-
-    await Member.findOneAndDelete({
-      _id: memberObjectId,
-      boardId: boardObjectId as any
-    });
 
     emitBoardUpdate(id, ['members', 'transactions', 'products']);
     res.json({ id: member_id });

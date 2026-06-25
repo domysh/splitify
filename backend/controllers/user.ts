@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import User from '../models/User';
-import { hashPassword, verifyPassword } from '../utils/auth';
+import { hashPassword, verifyPassword, verifyChallengeToken } from '../utils/auth';
 import { AddUser, AuthRequest, ChangePassword, Role, UpdateUser, UpdateUsername } from '../models/types';
 import { emitAdminUpdate, emitUserUpdate } from '../utils/socket';
 import { generateRandomObjectId } from '../utils';
@@ -8,6 +8,8 @@ import Board from '../models/Board';
 import { deleteBoardAction } from './board/board';
 import { ObjectId } from 'mongodb';
 import BoardAccess from '../models/BoardAccess';
+import { verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { RP_ID, RP_ORIGIN } from '../config';
 
 const calculatelastAccessStage = {
   $addFields: {
@@ -221,6 +223,83 @@ export const changeUserPassword = async (req: AuthRequest, res: Response) => {
   }
 }
 
+export const changePasswordWithPasskey = async (req: AuthRequest, res: Response) => {
+  try {
+    const { newPassword, response, token } = req.body;
+    const { expireSessions } = req.query;
+
+    if (!req.user) return res.status(400).json({ message: 'User not found' });
+
+    const expectedChallenge = await verifyChallengeToken(token);
+    if (!expectedChallenge) {
+      return res.status(400).json({ message: 'Invalid or expired challenge' });
+    }
+
+    // @ts-ignore
+    const passkey = req.user.passkeys?.find(pk => pk.id === response.id);
+    if (!passkey) {
+      return res.status(400).json({ message: 'Passkey non trovata per questo utente' });
+    }
+
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge,
+        expectedOrigin: RP_ORIGIN,
+        expectedRPID: RP_ID,
+        credential: {
+          id: passkey.id,
+          publicKey: new Uint8Array(passkey.publicKey),
+          counter: passkey.counter,
+          transports: passkey.transports as any,
+        },
+      });
+    } catch (error: any) {
+      console.error(error);
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (!verification.verified) {
+      return res.status(400).json({ message: 'Autenticazione passkey fallita' });
+    }
+
+    // Update counter
+    passkey.counter = verification.authenticationInfo.newCounter;
+    req.user.markModified('passkeys');
+
+    // Change password
+    req.user.password = await hashPassword(newPassword);
+    
+    if ((expireSessions as string)?.toLowerCase() === 'true' && req.token){
+      req.user.sessions = req.user.sessions.filter(s => s.sessionId === req.token?.sid);
+    }
+
+    await req.user.save();
+    emitAdminUpdate(['users', `users/${req.user.id}`]);
+    if (req.user._id) emitUserUpdate(req.user._id.toString(), ['me']);
+    
+    res.json({ id: req.user._id?.toString()??"" });
+  } catch (err) {
+    console.error('Error changing password with passkey:', err);
+    res.status(400).json({ message: 'Failed to change password' });
+  }
+};
+
+
+export const dismissPasskeyPrompt = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(400).json({ message: 'User not found' });
+
+    req.user.passkeyPromptDismissed = true;
+    await req.user.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error dismissing passkey prompt:', err);
+    res.status(500).json({ message: 'Failed to dismiss passkey prompt' });
+  }
+};
 
 export const deleteUser = async (req: AuthRequest, res: Response) => {
   try {

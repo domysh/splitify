@@ -119,35 +119,41 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        if (
-            !updateOnlyFlag &&
-            productData.price !== undefined &&
-            productData.price !== currentProduct.price
-        ) {
+        const memberId = req.body.memberId;
+        delete (productData as any).memberId;
+
+        if (!updateOnlyFlag) {
             const transactions = await Transaction.find({
                 productId: new ObjectId(product_id),
                 boardId: new ObjectId(id) as any,
             });
 
-            if (
-                transactions.length === 1 &&
-                Number(transactions[0].amount) === Number(currentProduct.price)
-            ) {
-                await Transaction.updateOne(
-                    { _id: transactions[0]._id },
-                    { $set: { amount: productData.price } },
-                );
-
-                if (transactions[0].fromMemberId) {
-                    const priceDifference =
-                        Number(productData.price) -
-                        Number(currentProduct.price);
-                    await Member.updateOne(
-                        { _id: transactions[0].fromMemberId },
-                        { $inc: { paid: priceDifference } },
+            if (transactions.length === 1) {
+                const transaction = transactions[0];
+                let priceChanged = productData.price !== undefined && productData.price !== currentProduct.price;
+                let payerChanged = memberId !== undefined && transaction.fromMemberId?.toString() !== memberId;
+                
+                if (priceChanged || payerChanged) {
+                    const newPrice = priceChanged ? productData.price : transaction.amount;
+                    const oldPrice = transaction.amount;
+                    
+                    const oldPayer = transaction.fromMemberId;
+                    const newPayer = payerChanged ? new ObjectId(memberId) : transaction.fromMemberId;
+                    
+                    if (oldPayer) {
+                        await Member.updateOne({ _id: oldPayer }, { $inc: { paid: -Number(oldPrice) } });
+                    }
+                    if (newPayer) {
+                        await Member.updateOne({ _id: newPayer }, { $inc: { paid: Number(newPrice) } });
+                    }
+                    
+                    await Transaction.updateOne(
+                        { _id: transaction._id },
+                        { $set: { amount: newPrice, fromMemberId: newPayer } }
                     );
+                    
+                    transactionUpdated = true;
                 }
-                transactionUpdated = true;
             }
         }
 

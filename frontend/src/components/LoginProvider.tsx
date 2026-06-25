@@ -12,12 +12,15 @@ import {
     PasswordInput,
     Checkbox,
     Image,
+    Modal,
+    Stack,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useCallback, useEffect, useState } from "react";
 import { notifications } from "@mantine/notifications";
-import { postRequest } from "@/utils/net";
-import { IconLogin, IconShield } from "@tabler/icons-react";
+import { postRequest, getRequest, putRequest } from "@/utils/net";
+import { IconLogin, IconShield, IconFingerprint } from "@tabler/icons-react";
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { RegistrationMode } from "@/utils/types";
 import { Outlet, useNavigate } from "react-router";
 import { useAuth, useHeader, useLoading } from "@/utils/store";
@@ -36,6 +39,10 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     const regInfo = registrationInfoQuery();
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+
+    const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
+    const [tempToken, setTempToken] = useState<string | null>(null);
+    const [isCreatingPasskey, setIsCreatingPasskey] = useState(false);
     const { setHeader } = useHeader();
 
     const registrationMode = regInfo.data?.mode ?? RegistrationMode.PRIVATE;
@@ -106,8 +113,21 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             postRequest("/login", {
                 body: { username, password, keepLogin },
             })
-                .then((res) => {
+                .then(async (res) => {
                     if (res.access_token) {
+                        try {
+                            const headers = { Authorization: 'Bearer ' + res.access_token };
+                            const me = await getRequest('/me', { headers });
+                            
+                            if (me.passkeys?.length === 0 && !me.passkeyPromptDismissed) {
+                                setTempToken(res.access_token);
+                                setShowPasskeyPrompt(true);
+                                return;
+                            }
+                        } catch (err) {
+                            console.error("Failed to check passkey status", err);
+                        }
+
                         setToken(res.access_token);
                         notifications.show({
                             title: "Accesso effettuato",
@@ -121,7 +141,7 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                 .catch((error) => {
                     setError(
                         error?.message ||
-                            "Si è verificato un errore durante l'accesso.",
+                        "Si è verificato un errore durante l'accesso.",
                     );
                     notifications.show({
                         title: "Errore di autenticazione",
@@ -135,12 +155,107 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                     setLoading(false);
                 });
         },
-        [setLoading, setToken],
+        [setLoading, setToken, form.values.username, form.values.password],
     );
+
+    const finalizeLogin = useCallback(() => {
+        if (tempToken) {
+            setToken(tempToken);
+            setTempToken(null);
+            setShowPasskeyPrompt(false);
+            notifications.show({
+                title: "Accesso effettuato",
+                message: "Benvenuto su Splitify!",
+                color: "green",
+            });
+        }
+    }, [tempToken, setToken]);
+
+    const handleCreatePasskeyFromPrompt = useCallback(async () => {
+        setIsCreatingPasskey(true);
+        try {
+            const headers = { Authorization: 'Bearer ' + tempToken };
+            const options = await postRequest('/passkey/register/options', { 
+                body: { password: form.values.password }, 
+                headers 
+            });
+            const response = await startRegistration(options.options);
+            const verifyResp = await postRequest('/passkey/register/verify', {
+                body: { response, token: options.token, name: "Dispositivo di " + form.values.username },
+                headers
+            });
+            if (verifyResp.verified) {
+                notifications.show({ title: 'Passkey aggiunta', message: 'Passkey registrata con successo', color: 'green' });
+            }
+        } catch (error: any) {
+             notifications.show({ title: 'Errore Passkey', message: error.message || 'Impossibile registrare la passkey', color: 'red' });
+        } finally {
+            setIsCreatingPasskey(false);
+            finalizeLogin();
+        }
+    }, [tempToken, form.values.password, form.values.username, finalizeLogin]);
+
+    const handlePostponePasskey = useCallback(() => {
+        finalizeLogin();
+    }, [finalizeLogin]);
+
+    const handleDismissPasskey = useCallback(async () => {
+        try {
+            const headers = { Authorization: 'Bearer ' + tempToken };
+            await putRequest('/users/me/passkey-prompt-dismiss', { headers });
+        } catch (e) {
+            console.error("Failed to dismiss prompt", e);
+        }
+        finalizeLogin();
+    }, [tempToken, finalizeLogin]);
 
     const navigateToSignup = useCallback(() => {
         navigate("/register");
     }, [navigate]);
+
+    const handlePasskeyLogin = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // 1. Get options
+            // If username is typed, send it.
+            const username = form.values.username;
+            const options = await postRequest('/passkey/login/options', { body: { username: username || undefined } });
+
+            // 2. Start authentication
+            const response = await startAuthentication(options.options);
+
+            // 3. Verify
+            const verifyResp = await postRequest('/passkey/login/verify', {
+                body: {
+                    response,
+                    token: options.token,
+                    keepLogin: form.values.keepLogin
+                }
+            });
+
+            if (verifyResp.verified && verifyResp.access_token) {
+                setToken(verifyResp.access_token);
+                notifications.show({
+                    title: "Accesso effettuato",
+                    message: "Benvenuto su Splitify!",
+                    color: "green",
+                });
+            } else {
+                throw new Error('Verifica fallita');
+            }
+        } catch (error: any) {
+            console.error(error);
+            setError(error.message || "Errore durante l'accesso con Passkey");
+            notifications.show({
+                title: "Errore Passkey",
+                message: error.message || "Impossibile completare l'accesso con Passkey",
+                color: "red"
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [form.values.username, form.values.keepLogin, setLoading, setToken]);
 
     if (token && !force) {
         return children ?? <Outlet />;
@@ -148,6 +263,20 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
 
     return (
         <Container size="sm" mt={50}>
+            <Modal opened={showPasskeyPrompt} onClose={() => {}} withCloseButton={false} title={<Title order={3}>Aggiungi una Passkey</Title>} centered>
+                <Text mb="md">Aggiungi una passkey per accedere più velocemente usando l'impronta digitale o il Face ID, senza dover inserire la password al prossimo accesso!</Text>
+                <Stack>
+                    <Button loading={isCreatingPasskey} leftSection={<IconFingerprint size={20}/>} onClick={handleCreatePasskeyFromPrompt}>
+                        Crea subito
+                    </Button>
+                    <Button variant="light" onClick={handlePostponePasskey}>
+                        Chiedilo al prossimo login
+                    </Button>
+                    <Button variant="subtle" color="gray" onClick={handleDismissPasskey}>
+                        Non chiedere più
+                    </Button>
+                </Stack>
+            </Modal>
             <Box mb={30} className="center-flex-col">
                 <Image
                     src="/logo.png"
@@ -370,6 +499,18 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                             }}
                         >
                             Accedi
+                        </Button>
+                    </Group>
+                    <Group justify="center" mt="md">
+                        <Button
+                            variant="subtle"
+                            color="gray"
+                            leftSection={<IconFingerprint size={20} />}
+                            onClick={handlePasskeyLogin}
+                            fullWidth
+                            className="transparency-on-hover"
+                        >
+                            Accedi con Passkey
                         </Button>
                     </Group>
                 </form>

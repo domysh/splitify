@@ -11,10 +11,36 @@ const UserSchema: Schema = new Schema({
       sessionId: String,
       createdAt: { type: Date, default: Date.now },
       expiresAt: Date,
-      lastUsed: { type: Date, default: Date.now }
+      lastUsed: { type: Date, default: Date.now },
+      os: String,
+      browser: String,
+      device: String,
+      ip: String,
+      location: String
     }],
     default: []
-  }
+  },
+  passkeys: {
+    type: [{
+      id: String,
+      name: String,
+      createdAt: { type: Date, default: Date.now },
+      publicKey: Buffer,
+      counter: Number,
+      transports: [String]
+    }],
+    default: []
+  },
+  pinnedBoards: {
+    type: [{ type: Schema.Types.ObjectId, ref: 'Board' }],
+    default: []
+  },
+  boardUsage: {
+    type: Map,
+    of: Number,
+    default: {}
+  },
+  passkeyPromptDismissed: { type: Boolean, default: false }
 }, defaultOption);
 
 setAggregateDefaultOperations(UserSchema)

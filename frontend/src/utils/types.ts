@@ -11,6 +11,11 @@ export interface UserSession {
     createdAt: Date;
     expiresAt: Date;
     lastUsed: Date;
+    os?: string;
+    browser?: string;
+    device?: string;
+    ip?: string;
+    location?: string;
 }
 
 export interface user {
@@ -19,6 +24,11 @@ export interface user {
     role: string;
     lastAccess?: string;
     sessions?: UserSession[];
+    pinnedBoards?: string[];
+    boardUsage?: Record<string, number>;
+    passkeys?: PasskeyCredential[];
+    currentSessionId?: string;
+    passkeyPromptDismissed?: boolean;
 }
 
 export enum RegistrationMode {
@@ -38,6 +48,15 @@ export interface member {
     name: string;
     paid: number;
     categories: string[];
+}
+
+export interface PasskeyCredential {
+    id: string;
+    name: string;
+    createdAt: string;
+    publicKey: Uint8Array;
+    counter: number;
+    transports?: string[];
 }
 
 export interface product {

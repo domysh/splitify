@@ -1,15 +1,17 @@
 import { boardListing, BoardPermission } from "@/utils/types";
 import { Card, Text, Group, Badge, Box, Tooltip, Avatar } from "@mantine/core";
 import { useNavigate } from "react-router";
-import { IconUsersGroup, IconCategory, IconShoppingBag, IconLock } from "@tabler/icons-react";
+import { IconUsersGroup, IconCategory, IconShoppingBag, IconLock, IconPin, IconPinFilled } from "@tabler/icons-react";
 import { PermissionIcon } from "@/commons/PermissionIcon";
 import { getInitials } from "@/utils/formatters";
 
 export interface BoardCardProps {
   board: boardListing;
+  isPinned?: boolean;
+  onPinToggle?: (e: React.MouseEvent) => void;
 }
 
-export const BoardCard = ({ board }: BoardCardProps) => {
+export const BoardCard = ({ board, isPinned, onPinToggle }: BoardCardProps) => {
   const navigate = useNavigate();
   return <Card
       shadow="sm"
@@ -61,6 +63,27 @@ export const BoardCard = ({ board }: BoardCardProps) => {
         </Text>
 
         <Group gap={8}>
+          {onPinToggle && (
+            <Tooltip label={isPinned ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}>
+              <Box
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPinToggle(e);
+                }}
+                style={{
+                  background: isPinned ? "rgba(255, 212, 59, 0.15)" : "rgba(255, 255, 255, 0.05)",
+                  borderRadius: "50%",
+                  padding: "5px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "var(--transition-standard)",
+                }}
+              >
+                {isPinned ? <IconPinFilled size={16} color="#ffd43b" /> : <IconPin size={16} color="#a5b4fc" />}
+              </Box>
+            </Tooltip>
+          )}
           
           <PermissionIcon permission={board.permission} />
 

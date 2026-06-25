@@ -58,16 +58,16 @@ export const elaborateJsonRequest = (res: Response) => {
     return res.json()
 }
 
-export const getRequest = async (url:string, options: {params?: {[p:string]:any}} = {}) => {
+export const getRequest = async (url:string, options: {params?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "GET",
         credentials: "same-origin",
         cache: 'no-cache',
-        headers: {...getAuthHeaders()}
+        headers:{...getAuthHeaders(), ...options.headers}
     }).then(elaborateJsonRequest)
 }
 
-export const postRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}} = {}) => {
+export const postRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "POST",
         credentials: "same-origin",
@@ -75,7 +75,8 @@ export const postRequest = async (url:string, options: {params?: {[p:string]:any
         body: options.body?JSON.stringify(options.body):undefined,
         headers:{
             "Content-Type": "application/json",
-            ...getAuthHeaders()
+            ...getAuthHeaders(),
+            ...options.headers
         }
     }).then(elaborateJsonRequest)
 }
@@ -93,7 +94,7 @@ export const postFormRequest = async (url:string, options: {params?: {[p:string]
     }).then(elaborateJsonRequest)
 }
 
-export const putRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}} = {}) => {
+export const putRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "PUT",
         credentials: "same-origin",
@@ -101,17 +102,18 @@ export const putRequest = async (url:string, options: {params?: {[p:string]:any}
         body: options.body?JSON.stringify(options.body):undefined,
         headers:{
             "Content-Type": "application/json",
-            ...getAuthHeaders()
+            ...getAuthHeaders(),
+            ...options.headers
         }
     }).then(elaborateJsonRequest)
 }
 
-export const deleteRequest = async (url:string, options: {params?: {[p:string]:any}} = {}) => {
+export const deleteRequest = async (url:string, options: {params?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "DELETE",
         credentials: "same-origin",
         cache: 'no-cache',
-        headers:{...getAuthHeaders()}
+        headers:{...getAuthHeaders(), ...options.headers}
     }).then(elaborateJsonRequest)
 }
 
@@ -123,4 +125,8 @@ export const searchUsers = async (query: string): Promise<any[]> => {
         console.error('Errore nella ricerca utenti:', error);
         return [];
     }
+};
+
+export const togglePinBoard = async (boardId: string) => {
+    return await postRequest(`boards/${boardId}/pin`);
 };

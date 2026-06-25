@@ -5,7 +5,7 @@ import Product from '../../models/Product';
 import Member from '../../models/Member';
 import Transaction from '../../models/Transaction';
 import BoardAccess from '../../models/BoardAccess';
-import { emitBoardUpdate } from '../../utils/socket';
+import { emitBoardUpdate, emitUserUpdate } from '../../utils/socket';
 import { AddBoardForm, AuthRequest, BoardPermission, Role } from '../../models/types';
 import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
@@ -165,7 +165,7 @@ export const getBoards = async (req: AuthRequest, res: Response) => {
         stats: true,
         products: false,
         categories: true,
-        filters: (user.role === Role.ADMIN) ? [] : [
+        filters: [
           {
             $lookup: {
               from: 'boardaccesses',
@@ -227,6 +227,22 @@ export const getBoard = async (req: AuthRequest, res: Response) => {
     if (!board) {
       return res.status(404).json({ message: 'Board not found' });
     }
+
+    if (user) {
+      if (!user.boardUsage) {
+        user.boardUsage = {};
+      }
+      const usageMap = user.boardUsage as any;
+      if (typeof usageMap.get === 'function') {
+        usageMap.set(id, Date.now());
+      } else {
+        usageMap[id] = Date.now();
+        user.markModified('boardUsage');
+      }
+      await user.save();
+      if (user._id) emitUserUpdate(user._id.toString(), ['me']);
+    }
+
     res.json(
       await Board.aggregate(boardPipeline({
         members: true,
@@ -298,5 +314,40 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
   } catch (err) {
     console.error('Error deleting board:', err);
     res.status(400).json({ message: 'Failed to delete board' });
+  }
+};
+
+export const togglePinBoard = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Verify board exists and user has access
+    const [board] = await getAuthenticatedBoard(id, user.id);
+    if (!board) {
+      return res.status(404).json({ message: 'Board not found' });
+    }
+
+    const boardObjectId = new ObjectId(id);
+    const pinIndex = user.pinnedBoards?.findIndex((b: any) => b.toString() === id) ?? -1;
+
+    if (pinIndex === -1) {
+      if (!user.pinnedBoards) user.pinnedBoards = [];
+      user.pinnedBoards.push(boardObjectId as any);
+    } else {
+      user.pinnedBoards?.splice(pinIndex, 1);
+    }
+
+    await user.save();
+    if (user._id) emitUserUpdate(user._id.toString(), ['me']);
+
+    res.json({ success: true, pinned: pinIndex === -1 });
+  } catch (err) {
+    console.error('Error toggling pin:', err);
+    res.status(400).json({ message: 'Failed to toggle pin' });
   }
 };

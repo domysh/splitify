@@ -8,6 +8,8 @@
     "prepare": "ts-patch install"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^13.3.2",
+    "@simplewebauthn/types": "^12.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^8.2.3",
@@ -17,17 +19,22 @@
     "@types/socket.io": "^3.0.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongodb": "^7.0.0",
-    "mongoose": "^9.1.5",
+    "mongodb": "^6.13.0",
+    "mongoose": "^8.10.1",
     "socket.io": "^4.8.3",
-    "typia": "^11.0.2"
+    "typia": "^12.1.1",
+    "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "ts-patch": "^3.3.0",
-    "typescript": "~5.9.3"
+    "@types/ua-parser-js": "^0.7.39",
+    "concurrently": "^10.0.3",
+    "ts-patch": "^4.0.1",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@peculiar/asn1-schema": "2.8.0"
   }
 }

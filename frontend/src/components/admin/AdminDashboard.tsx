@@ -129,7 +129,7 @@ const AdminDashboard = () => {
                 />
               </Box>
               
-              <Grid gutter="xs">
+              <Grid>
                 {[
                   { title: "Utenti", value: stats.data?.users??0, color: "blue", icon: <IconUsers size={18} /> },
                   { title: "Transazioni", value: stats.data?.transactions??0, color: "violet", icon: <IconChartBarPopular size={18} /> },

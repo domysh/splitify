@@ -1,13 +1,13 @@
 import { useCurrentUser } from "@/utils/hooks";
 import { Avatar, Box, Group, Text } from "@mantine/core";
 import { getInitials } from "@/utils/formatters";
-import { useRouteFunctions } from "@/utils/store";
+import { useNavigate } from "react-router";
 
 export interface UserInfoDisplayProps {};
 
 const UserInfoDisplay = ({}:UserInfoDisplayProps) => {
   const currentUser = useCurrentUser();
-  const navigate = useRouteFunctions(args => args.navigate);
+  const navigate = useNavigate();
 
   if (!currentUser || currentUser.isLoading) {
     return null;

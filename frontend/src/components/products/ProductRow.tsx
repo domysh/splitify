@@ -12,10 +12,11 @@ import {
 import { memo } from "react";
 import { AdvancedNumberInput } from "@/commons/AdvancedNumberInput";
 import { DeleteProduct } from "@/components/products/DeleteProduct";
-import { inputStyles } from "@/styles/commonStyles";
-import { board, product } from "@/utils/types";
+import { board, product, transaction } from "@/utils/types";
+import { Select } from "@mantine/core";
 import { ProductEdits } from "./ProductSettingsModal";
 import { getInitials, hashColor } from "@/utils/formatters";
+import { inputStyles } from "@/styles/commonStyles";
 import Big from "big.js";
 
 export interface ProductRowProps {
@@ -24,6 +25,8 @@ export interface ProductRowProps {
     animateTable: boolean;
     handleNameChange: (id: string, value: string) => void;
     handlePriceChange: (id: string, value: string | number) => void;
+    handleMemberChange: (id: string, value: string) => void;
+    transaction?: transaction;
     edits: ProductEdits;
     board: board;
 }
@@ -35,6 +38,8 @@ export const ProductRow = memo(
         animateTable,
         handleNameChange,
         handlePriceChange,
+        handleMemberChange,
+        transaction,
         edits,
         board,
     }: ProductRowProps) => {
@@ -112,6 +117,17 @@ export const ProductRow = memo(
                             </Tooltip>
                         </Table.Td>
                         <Table.Td>
+                            <Select 
+                                data={board.members.map(m => ({ value: m.id, label: m.name }))}
+                                value={edits[product.id]?.memberId ?? transaction?.fromMemberId ?? ''}
+                                onChange={(val) => handleMemberChange(product.id, val || '')}
+                                placeholder="Pagato da"
+                                styles={inputStyles}
+                                style={{ width: 140 }}
+                                clearable={false}
+                            />
+                        </Table.Td>
+                        <Table.Td>
                             <DeleteProduct board={board} product={product} />
                         </Table.Td>
                     </Table.Tr>
@@ -128,6 +144,8 @@ export const ProductCardMemo = memo(
         animateTable,
         handleNameChange,
         handlePriceChange,
+        handleMemberChange,
+        transaction,
         edits,
         board,
     }: ProductRowProps) => {
@@ -203,6 +221,20 @@ export const ProductCardMemo = memo(
                                     }
                                     style={{ width: "100%" }}
                                     styles={inputStyles}
+                                />
+                            </Box>
+                            
+                            <Box>
+                                <Text size="sm" fw={500} mb={5}>
+                                    Pagato da:
+                                </Text>
+                                <Select 
+                                    data={board.members.map(m => ({ value: m.id, label: m.name }))}
+                                    value={edits[product.id]?.memberId ?? transaction?.fromMemberId ?? ''}
+                                    onChange={(val) => handleMemberChange(product.id, val || '')}
+                                    placeholder="Seleziona membro"
+                                    styles={inputStyles}
+                                    clearable={false}
                                 />
                             </Box>
                         </Stack>

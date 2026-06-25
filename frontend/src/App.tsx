@@ -12,10 +12,10 @@ import {
 } from "@mantine/core";
 import { useCurrentUser, useMobile, useSmallScreen } from "@/utils/hooks";
 import { useQueryClient } from "@tanstack/react-query";
+import { deleteRequest } from "@/utils/net";
 import { useEffect, useState, useCallback, lazy } from "react";
 import { AdminButton, HomeButton, LogoutButton } from "@/commons/Buttons";
 import {
-    useRouteFunctions,
     useHeader,
     useAuth,
     useLoading,
@@ -23,7 +23,6 @@ import {
 } from "@/utils/store";
 import { onConnectionCallbacks, socket } from "@/utils/socket";
 
-const NavigatorContext = lazy(() => import("@/commons/NavigatorContext"));
 const RegisterPage = lazy(() => import("@/components/RegisterPage"));
 const BoardPage = lazy(() => import("@/components/board/BoardPage"));
 const Dashboard = lazy(() => import("@/components/Dashboard"));
@@ -38,7 +37,7 @@ const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
 const BurgerSection = lazy(() => import("@/components/BurgerSection"));
 const UserProfilePage = lazy(() => import("@/components/user/UserProfilePage"));
 
-import { Route } from "react-router";
+import { Route, Routes, useNavigate } from "react-router";
 
 export default function App() {
     const isMobile = useMobile();
@@ -49,7 +48,7 @@ export default function App() {
     const loadingStatus = useLoadingStore((state) => state.loading);
     const { token, logout, isHydrated } = useAuth();
     const { header } = useHeader();
-    const { navigate } = useRouteFunctions();
+    const navigate = useNavigate();
 
     useEffect(() => {
         let first_time = true;
@@ -109,7 +108,10 @@ export default function App() {
 
     const closeNavbar = () => setMobileOpened(false);
 
-    const handleLogout = useCallback(() => {
+    const handleLogout = useCallback(async () => {
+        try {
+            await deleteRequest('/logout');
+        } catch (e) {}
         logout();
         queryClient.clear();
         navigate("/");
@@ -250,7 +252,7 @@ export default function App() {
                 </AppShell.Navbar>
 
                 <AppShell.Main>
-                    <NavigatorContext>
+                    <Routes>
                         <Route
                             path="/register"
                             element={
@@ -334,7 +336,7 @@ export default function App() {
                                 }
                             />
                         </Route>
-                    </NavigatorContext>
+                    </Routes>
                 </AppShell.Main>
             </AppShell>
         </>

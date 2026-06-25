@@ -9,6 +9,7 @@ import { usePermissions } from "@/utils/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { CategoryCheckbox } from "@/commons/CategoryCheckbox";
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
+import { transactionsQuery } from "@/utils/queries";
 
 interface CategoryToggleVariables {
     prodId: string;
@@ -28,6 +29,14 @@ export interface ProductsTableProps {
 export const ProductsTable = ({ board }: ProductsTableProps) => {
     const queryClient = useQueryClient();
     const isMobile = useMobile();
+    const { data: transactions } = transactionsQuery(board.id);
+
+    const getPayerName = useCallback((prodId: string) => {
+        if (!transactions) return undefined;
+        const tx = transactions.find(t => t.productId === prodId && !t.cancelled);
+        if (!tx || !tx.fromMemberId) return undefined;
+        return board.members.find(m => m.id === tx.fromMemberId)?.name || 'Sconosciuto';
+    }, [transactions, board.members]);
 
     const { canEdit } = usePermissions(board);
 
@@ -140,13 +149,19 @@ export const ProductsTable = ({ board }: ProductsTableProps) => {
                     <Box display="flex" style={{ gap: 10 }}>
                         <Avatar
                             radius="xl"
-                            size="sm"
+                            size="md"
                             color={hashColor(prod.name)}
-                            src={null}
                         >
                             {getInitials(prod.name, 1)}
                         </Avatar>
-                        <Text fw={500}>{prod.name}</Text>
+                        <Box>
+                            <Text fw={500} style={{ textWrap: "nowrap" }}>{prod.name}</Text>
+                            {getPayerName(prod.id) && (
+                                <Text size="xs" c="dimmed">
+                                    Pagato da: {getPayerName(prod.id)}
+                                </Text>
+                            )}
+                        </Box>
                     </Box>
                 </Table.Td>
                 <Table.Td style={{ fontWeight: 500, textWrap: "nowrap" }}>{formatPrice(prod.price)}</Table.Td>
@@ -208,7 +223,14 @@ export const ProductsTable = ({ board }: ProductsTableProps) => {
                                     >
                                         {getInitials(prod.name, 1)}
                                     </Avatar>
-                                    <Text fw={500}>{prod.name}</Text>
+                                    <Box>
+                                        <Text fw={500}>{prod.name}</Text>
+                                        {getPayerName(prod.id) && (
+                                            <Text size="xs" c="dimmed">
+                                                Pagato da: {getPayerName(prod.id)}
+                                            </Text>
+                                        )}
+                                    </Box>
                                 </Group>
                                 <Text fw={500}>{formatPrice(prod.price)}</Text>
                             </Group>

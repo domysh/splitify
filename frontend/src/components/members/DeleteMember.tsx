@@ -7,7 +7,7 @@ import { DeleteButton } from "@/commons/Buttons";
 import { YesOrNoModal } from "@/commons/YesOrNoModal";
 import { useLoading } from "@/utils/store";
 import { transactionsQuery } from "@/utils/queries";
-import { Box, List, Text, ThemeIcon } from "@mantine/core";
+import { Box, List, Text, ThemeIcon, Select } from "@mantine/core";
 
 export interface DeleteMemberProps {
     board: board;
@@ -16,6 +16,7 @@ export interface DeleteMemberProps {
 
 export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [transferTo, setTransferTo] = useState<string | null>(null);
     const { setLoading } = useLoading();
 
     const { data: transactions, isLoading } = transactionsQuery(board.id);
@@ -28,9 +29,14 @@ export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
         relatedTransactions.some(t => t.productId === p.id)
     );
 
+    const availableMembers = board.members
+        .filter(m => m.id !== member.id)
+        .map(m => ({ value: m.id, label: m.name }));
+
     const handleDelete = useCallback(() => {
         setLoading(true);
-        deleteRequest(`/boards/${board.id}/members/${member.id}`)
+        const url = `/boards/${board.id}/members/${member.id}${transferTo ? `?transferToMemberId=${transferTo}` : ''}`;
+        deleteRequest(url)
             .then(() => {
                 notifications.show({
                     title: "Membro eliminato",
@@ -42,7 +48,7 @@ export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
             .finally(() => {
                 setLoading(false);
             });
-    }, [board.id, member.id, setLoading]);
+    }, [board.id, member.id, transferTo, setLoading]);
 
     const deleteMessage = (
         <Box>
@@ -74,8 +80,18 @@ export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
                                 )}
                             </List>
                             <Text size="xs" c="dimmed" mt="xs">
-                                I saldi degli altri membri verranno ricalcolati.
+                                Scegli se eliminare queste transazioni o trasferirle a un altro membro.
                             </Text>
+                            <Select
+                                mt="sm"
+                                size="sm"
+                                placeholder="Nessuno (Elimina transazioni)"
+                                data={[{ value: '', label: 'Nessuno (Elimina transazioni)' }, ...availableMembers]}
+                                value={transferTo || ''}
+                                onChange={(val) => setTransferTo(val || null)}
+                                label="Trasferisci a:"
+                                clearable
+                            />
                         </Box>
                     )}
                 </>

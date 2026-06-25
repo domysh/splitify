@@ -55,11 +55,48 @@ export const initializeSocketIO = async (httpServer: any) => {
     }
   });
   
+const ANIMAL_NAMES = ['Criceto', 'Armadillo', 'Panda', 'Delfino', 'Corvo', 'Tigre', 'Koala', 'Leopardo', 'Pinguino', 'Scoiattolo', 'Camaleonte', 'Iguana', 'Volpe', 'Lupo', 'Orso', 'Gatto', 'Cane', 'Elefante', 'Giraffa', 'Ippopotamo', 'Rinoceronte', 'Coccodrillo', 'Tartaruga', 'Serpente', 'Aquila', 'Gufo', 'Pipistrello', 'Farfalla', 'Ape', 'Coccinella', 'Ragno'];
+const COLORS = ['red', 'pink', 'grape', 'violet', 'indigo', 'blue', 'cyan', 'teal', 'green', 'lime', 'yellow', 'orange'];
+
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket;
+    
+    if (!authSocket.user) {
+      const animal = ANIMAL_NAMES[Math.floor(Math.random() * ANIMAL_NAMES.length)];
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+      (authSocket as any).anonName = `Anonimo ${animal}`;
+      (authSocket as any).anonColor = color;
+    }
 
     console.log('A user connected', socket.id, authSocket.user?.id ? `(User: ${authSocket.user?.id})` : '(Anonymous)');
-    
+
+    const broadcastBoardPresence = async (boardId: string) => {
+      const room = `board:${boardId.toLowerCase()}`;
+      const sockets = await io.in(room).fetchSockets();
+      
+      const onlineUsersMap = new Map<string, { id: string, username: string, color?: string, isAnonymous?: boolean }>();
+      for (const s of sockets) {
+        const aSocket = s as unknown as AuthenticatedSocket;
+        if (aSocket.user && aSocket.user.id) {
+          onlineUsersMap.set(aSocket.user.id, { 
+            id: aSocket.user.id, 
+            username: aSocket.user.username 
+          });
+        } else {
+          const anonName = (aSocket as any).anonName || 'Anonimo';
+          const anonColor = (aSocket as any).anonColor || 'gray';
+          onlineUsersMap.set(s.id, {
+            id: s.id,
+            username: anonName,
+            color: anonColor,
+            isAnonymous: true
+          });
+        }
+      }
+      
+      const onlineUsers = Array.from(onlineUsersMap.values());
+      io.to(room).emit('presenceUpdate', { onlineUsers });
+    };
     
     socket.on('joinBoard', async (boardId: string, callback: Function) => {
       try {
@@ -69,6 +106,7 @@ export const initializeSocketIO = async (httpServer: any) => {
         if (canAccessBoard) {
           socket.join(`board:${boardId.toLowerCase()}`);
           callback({ boardId, success: true });
+          broadcastBoardPresence(boardId);
         } else {
           callback({ 
             boardId, 
@@ -89,12 +127,22 @@ export const initializeSocketIO = async (httpServer: any) => {
     socket.on('leaveBoard', (boardId: string, callback: Function) => {
       socket.leave(`board:${boardId.toLowerCase()}`);
       callback({ boardId, success: true });
+      broadcastBoardPresence(boardId);
     });
 
     
     socket.on('client_disconnect', () => {
       console.log(`Client ${socket.id} requested explicit disconnection`);
       socket.disconnect(true);
+    });
+    
+    socket.on('disconnecting', () => {
+      for (const room of socket.rooms) {
+        if (room.startsWith('board:')) {
+          const boardId = room.split(':')[1];
+          setTimeout(() => broadcastBoardPresence(boardId), 0);
+        }
+      }
     });
     
     socket.on('disconnect', (reason) => {

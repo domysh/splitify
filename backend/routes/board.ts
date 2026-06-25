@@ -16,6 +16,7 @@ import {
     getBoard,
     getBoards,
     updateBoard,
+    togglePinBoard,
 } from "../controllers/board/board";
 import {
     createCategory,
@@ -48,6 +49,7 @@ const router = Router();
 
 router.get("/", hasRole(Role.GUEST), r(getBoards));
 router.get("/:id", r(getBoard));
+router.post("/:id/pin", hasRole(Role.GUEST), r(togglePinBoard));
 router.post("/", r(validateAddBoard), hasRole(Role.GUEST), r(createBoard));
 router.put("/:id", r(validateAddBoard), hasRole(Role.GUEST), r(updateBoard));
 router.delete("/:id", hasRole(Role.GUEST), r(deleteBoard));

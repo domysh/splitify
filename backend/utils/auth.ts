@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { Document } from 'mongoose';
 import { JWT_ALGORITHM } from '../config';
 import { jwtValidator } from '../middleware/validation';
+import { UAParser } from 'ua-parser-js';
 
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(10);
@@ -23,21 +24,21 @@ export const getAppSecret = async (): Promise<string> => {
   if (APP_SECRET_CACHE) {
     return APP_SECRET_CACHE;
   }
-  
+
   const secretDoc = await Env.findOne({ key: 'APP_SECRET' });
-  
+
   if (secretDoc) {
     APP_SECRET_CACHE = secretDoc.value;
     return secretDoc.value;
   }
-  
+
   const newSecret = crypto.randomBytes(32).toString('hex');
-  
+
   const newSecretDoc = new Env({
     key: 'APP_SECRET',
     value: newSecret
   });
-  
+
   await newSecretDoc.save();
   APP_SECRET_CACHE = newSecret;
   return newSecret;
@@ -52,34 +53,69 @@ export const generateSessionId = (): string => {
   return crypto.randomBytes(8).toString('hex');
 };
 
-export const createAccessToken = async (userId: string, duration: number = TOKEN_DURATION.SHORT, sessionId?: string): Promise<string> => {
+export const createAccessToken = async (userId: string, duration: number = TOKEN_DURATION.SHORT, sessionId?: string, userAgent?: string, ipAddress?: string): Promise<string> => {
   const secret = await getAppSecret();
-  
+
   const newSessionId = sessionId || generateSessionId();
-  
+
   const createdAt = Math.floor(Date.now() / 1000);
   const expirationTime = createdAt + duration;
-  
+
   const user = await User.findById(userId);
   if (user) {
     user.sessions = user.sessions.filter(s => s.sessionId !== newSessionId);
-    
+
+    let os = 'Sconosciuto';
+    let browser = 'Sconosciuto';
+    let device = 'Desktop';
+    let location = 'Sconosciuto';
+
+    if (userAgent) {
+      const parser = new UAParser(userAgent);
+      const parsedOS = parser.getOS();
+      const parsedBrowser = parser.getBrowser();
+      const parsedDevice = parser.getDevice();
+
+      if (parsedOS.name) os = `${parsedOS.name} ${parsedOS.version || ''}`.trim();
+      if (parsedBrowser.name) browser = `${parsedBrowser.name} ${parsedBrowser.version || ''}`.trim();
+      if (parsedDevice.type) device = parsedDevice.type;
+    }
+
+    if (ipAddress && ipAddress !== '127.0.0.1' && ipAddress !== '::1') {
+      try {
+        const response = await fetch(`http://ip-api.com/json/${ipAddress}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'success') {
+            location = `${data.city}, ${data.country}`;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching IP location:', err);
+      }
+    }
+
     user.sessions.push({
       sessionId: newSessionId,
       createdAt: new Date(createdAt * 1000),
       expiresAt: new Date(expirationTime * 1000),
-      lastUsed: new Date(createdAt * 1000)
+      lastUsed: new Date(createdAt * 1000),
+      os,
+      browser,
+      device,
+      ip: ipAddress || 'Sconosciuto',
+      location
     });
-    
+
     user.sessions.sort((a, b) => b.lastUsed.getTime() - a.lastUsed.getTime());
-    
+
     if (user.sessions.length > 10) {
       user.sessions = user.sessions.slice(0, 10);
     }
-    
+
     await user.save();
   }
-  
+
   const finalPayload = {
     sub: userId,
     sid: newSessionId,
@@ -90,7 +126,7 @@ export const createAccessToken = async (userId: string, duration: number = TOKEN
   return jwt.sign(finalPayload, secret);
 };
 
-export const canRefreshToken = (payload: JwtPayload): boolean => {  
+export const canRefreshToken = (payload: JwtPayload): boolean => {
   const now = Math.floor(Date.now() / 1000);
   const timeLeft = payload.exp - now;
   const tokenDuration = payload.exp - payload.iat
@@ -110,15 +146,15 @@ export const verifyToken = async (token: string): Promise<CheckLoginResponse | n
       algorithms: [JWT_ALGORITHM],
       ignoreExpiration: false,
     }));
-    
+
     const user = await User.findById(decoded.sub);
     const session = user?.sessions.find(s => s.sessionId === decoded.sid);
-    
+
     if (!session || !user) return null;
-    
+
     session.lastUsed = new Date();
     await user?.save();
-    
+
     return {
       user,
       token: decoded
@@ -128,16 +164,31 @@ export const verifyToken = async (token: string): Promise<CheckLoginResponse | n
   }
 };
 
-export const checkLogin = async (req: AuthRequest|string|undefined): Promise<CheckLoginResponse> => {
+export const checkLogin = async (req: AuthRequest | string | undefined): Promise<CheckLoginResponse> => {
   if (!req) return {};
-  const token = (typeof req === 'string')? req : req.headers.authorization?.split(' ')[1];
+  const token = (typeof req === 'string') ? req : req.headers.authorization?.split(' ')[1];
   if (!token) return {};
   try {
     const payload = await verifyToken(token);
-    if (!payload) return {};    
+    if (!payload) return {};
     return payload
   } catch (error) {
     return {};
   }
 };
 
+
+export const createChallengeToken = async (challenge: string): Promise<string> => {
+  const secret = await getAppSecret();
+  return jwt.sign({ challenge }, secret, { expiresIn: '5m' });
+};
+
+export const verifyChallengeToken = async (token: string): Promise<string | null> => {
+  try {
+    const secret = await getAppSecret();
+    const decoded = jwt.verify(token, secret) as { challenge: string };
+    return decoded.challenge;
+  } catch (error) {
+    return null;
+  }
+};
