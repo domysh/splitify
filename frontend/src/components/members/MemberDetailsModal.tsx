@@ -7,6 +7,7 @@ import {
   IconCreditCard,
   IconShoppingCart,
   IconArrowRight,
+  IconArrowLeft,
   IconCashOff,
   IconScale
 } from "@tabler/icons-react";
@@ -99,6 +100,7 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
   }, [memberTransactions, memberId]);
 
   const debitAmount = memberDebit ? memberDebit.price : 0;
+  const totalPaidExpenses = (member?.paid || 0) - totalReimbursedPaid + totalReimbursedReceived;
   const balance = (member?.paid || 0) - debitAmount;
 
   if (!memberId || !member) return null;
@@ -121,6 +123,27 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
       return `${getMemberName(transaction.fromMemberId)} ha pagato per ${productName}`;
     }
     return transaction.description;
+  };
+
+  const getTransactionDirection = (transaction: transaction) => {
+    if (transaction.productId) return null;
+    const fromName = transaction.fromMemberId ? getMemberName(transaction.fromMemberId) : null;
+    const toName = transaction.toMemberId ? getMemberName(transaction.toMemberId) : null;
+    
+    if (fromName && toName) return `Da ${fromName} a ${toName}`;
+    if (fromName) return `Pagato da ${fromName}`;
+    if (toName) return `Pagato a ${toName}`;
+    return null;
+  };
+
+  const getTransactionCashflow = (transaction: transaction) => {
+    if (transaction.toMemberId === memberId) {
+      return { color: "green", prefix: "+" };
+    }
+    if (transaction.fromMemberId === memberId) {
+      return { color: "red", prefix: "-" };
+    }
+    return { color: "gray", prefix: "" };
   };
 
   return (
@@ -152,7 +175,7 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
               <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Spese Pagate</Text>
               <ThemeIcon color="blue" variant="light" size="sm" style={{ flexShrink: 0 }}><IconShoppingCart size={14} /></ThemeIcon>
             </Group>
-            <Text size="xl" fw={700} truncate="end">{formatPrice(member.paid || 0)}</Text>
+            <Text size="xl" fw={700} truncate="end">{formatPrice(totalPaidExpenses)}</Text>
           </Card>
         </Grid.Col>
         
@@ -162,27 +185,27 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
               <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Quota Dovuta</Text>
               <ThemeIcon color="red" variant="light" size="sm" style={{ flexShrink: 0 }}><IconCashOff size={14} /></ThemeIcon>
             </Group>
-            <Text size="xl" fw={700} c="red.4" truncate="end">{formatPrice(debitAmount)}</Text>
+            <Text size="xl" fw={700} truncate="end">{formatPrice(debitAmount)}</Text>
           </Card>
         </Grid.Col>
         
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
           <Card withBorder radius="md" p="md" style={{ background: "rgba(30, 30, 40, 0.7)", borderColor: "var(--primary-border)", height: '100%' }}>
             <Group justify="space-between" wrap="nowrap" mb="xs">
-              <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Rimborsi Dati</Text>
+              <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Denaro Inviato</Text>
               <ThemeIcon color="violet" variant="light" size="sm" style={{ flexShrink: 0 }}><IconArrowRight size={14} /></ThemeIcon>
             </Group>
-            <Text size="xl" fw={700} c="green.4" truncate="end">{formatPrice(totalReimbursedPaid)}</Text>
+            <Text size="xl" fw={700} truncate="end">{formatPrice(totalReimbursedPaid)}</Text>
           </Card>
         </Grid.Col>
         
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
           <Card withBorder radius="md" p="md" style={{ background: "rgba(30, 30, 40, 0.7)", borderColor: "var(--primary-border)", height: '100%' }}>
             <Group justify="space-between" wrap="nowrap" mb="xs">
-              <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Rimborsi Ricev.</Text>
-              <ThemeIcon color="orange" variant="light" size="sm" style={{ flexShrink: 0 }}><IconCreditCard size={14} /></ThemeIcon>
+              <Text size="xs" c="dimmed" fw={600} tt="uppercase" truncate="end">Denaro Ricevuto</Text>
+              <ThemeIcon color="orange" variant="light" size="sm" style={{ flexShrink: 0 }}><IconArrowLeft size={14} /></ThemeIcon>
             </Group>
-            <Text size="xl" fw={700} c="red.4" truncate="end">{formatPrice(totalReimbursedReceived)}</Text>
+            <Text size="xl" fw={700} truncate="end">{formatPrice(totalReimbursedReceived)}</Text>
           </Card>
         </Grid.Col>
         
@@ -224,19 +247,27 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
             <Timeline active={paginatedTransactions.length} bulletSize={24} lineWidth={2}>
               {paginatedTransactions.map((transaction) => {
                 const transactionColor = getTransactionColor(transaction);
+                const cashflow = getTransactionCashflow(transaction);
                 return (
                   <Timeline.Item
                     key={transaction.id}
                     bullet={getTransactionIcon(transaction)}
                     title={
                       <Group gap="xs">
-                        <Text fw={600} size="md">
-                          {transaction.productId
-                            ? getProductTransactionDescription(transaction)
-                            : transaction.description}
-                        </Text>
-                        <Badge size="sm" color={transactionColor} variant="light">
-                          {formatPrice(transaction.amount)}
+                        <Box>
+                          <Text fw={600} size="md">
+                            {transaction.productId
+                              ? getProductTransactionDescription(transaction)
+                              : transaction.description || "Transazione"}
+                          </Text>
+                          {getTransactionDirection(transaction) && (
+                            <Text size="xs" c="dimmed">
+                              {getTransactionDirection(transaction)}
+                            </Text>
+                          )}
+                        </Box>
+                        <Badge size="sm" color={cashflow.color} variant="light">
+                          {cashflow.prefix} {formatPrice(transaction.amount)}
                         </Badge>
                         {transaction.cancelled && <Badge size="sm" color="gray" variant="outline">ANNULLATO</Badge>}
                       </Group>
