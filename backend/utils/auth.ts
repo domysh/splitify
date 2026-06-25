@@ -63,7 +63,8 @@ export const createAccessToken = async (userId: string, duration: number = TOKEN
 
   const user = await User.findById(userId);
   if (user) {
-    user.sessions = user.sessions.filter(s => s.sessionId !== newSessionId);
+    const now = new Date();
+    user.sessions = user.sessions.filter(s => s.sessionId !== newSessionId && s.expiresAt > now);
 
     let os = 'Sconosciuto';
     let browser = 'Sconosciuto';
@@ -148,6 +149,12 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
     }));
 
     const user = await User.findById(decoded.sub);
+    
+    if (user) {
+        const now = new Date();
+        user.sessions = user.sessions.filter(s => s.expiresAt > now);
+    }
+
     const session = user?.sessions.find(s => s.sessionId === decoded.sid);
 
     if (!session || !user) return null;
