@@ -8,6 +8,7 @@ export const DEBUG =
 export const CORS_ALLOW =
     process.env.CORS_ALLOW?.toLowerCase() === "true" ||
     process.env.CORS_ALLOW === "1";
+export const TRUST_PROXY = process.env.TRUST_PROXY;
 export const MONGO_URL =
     process.env.MONGO_URL ||
     (DEBUG

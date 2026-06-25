@@ -27,6 +27,7 @@ Ecco le variabili supportate che puoi impostare:
 - `MONGO_URL`: Stringa di connessione a MongoDB. Il default in produzione è `mongodb://mongo:27017/splitify`.
 - `PORT`: Porta su cui il server backend ascolta internamente. Default `8080`.
 - `CORS_ALLOW`: Impostare a `true` o `1` per abilitare CORS.
+- `TRUST_PROXY`: Impostare a `true` (o a un IP/subnet specifico come `loopback` o `192.168.1.0/24`) se il server è dietro a un reverse proxy (es. Nginx, Cloudflare, Traefik). Questo permette al backend di leggere correttamente l'indirizzo IP reale del client.
 - `DEBUG`: Impostare a `true` o `1` per avviare il container in modalità sviluppo.
 
 ## Buildare da source-code

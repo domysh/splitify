@@ -6,7 +6,7 @@ import http from "http";
 import path from "path";
 import apiRoutes from "./routes";
 import { initializeSocketIO } from "./utils/socket";
-import { MONGO_URL, DEBUG, CORS_ALLOW } from "./config";
+import { MONGO_URL, DEBUG, CORS_ALLOW, TRUST_PROXY } from "./config";
 import crypto from "crypto";
 import User from "./models/User";
 import { Role } from "./models/types";
@@ -15,6 +15,16 @@ import { hashPassword } from "./utils/auth";
 const app = express();
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
+
+if (TRUST_PROXY) {
+    if (TRUST_PROXY.toLowerCase() === "true") {
+        app.set("trust proxy", true);
+    } else if (!isNaN(Number(TRUST_PROXY))) {
+        app.set("trust proxy", Number(TRUST_PROXY));
+    } else {
+        app.set("trust proxy", TRUST_PROXY);
+    }
+}
 
 app.use(
     cors({
