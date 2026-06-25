@@ -111,7 +111,7 @@ export default function App() {
     const handleLogout = useCallback(async () => {
         try {
             await deleteRequest('/logout');
-        } catch (e) {}
+        } catch (e) { }
         logout();
         queryClient.clear();
         navigate("/");

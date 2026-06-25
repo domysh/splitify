@@ -370,3 +370,8 @@ tr:hover td {
   transition: opacity 0.2s ease;
   pointer-events: none;
 }
+
+/* Fix per bug estensione Bitwarden che lascia un livello invisibile bloccante */
+bit-notification-bar-root {
+  pointer-events: none !important;
+}

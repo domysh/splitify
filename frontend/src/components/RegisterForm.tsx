@@ -1,16 +1,17 @@
 
-import { Box, Button, Paper, PasswordInput, TextInput, Text, Space, Title, Alert, Group, Checkbox } from "@mantine/core";
+import { Box, Button, Paper, PasswordInput, TextInput, Text, Space, Title, Alert, Group, Checkbox, Modal, Stack } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { useEffect, useState } from "react";
-import { IconUserPlus, IconCheck } from "@tabler/icons-react";
+import { useEffect, useState, useCallback } from "react";
+import { IconUserPlus, IconCheck, IconFingerprint } from "@tabler/icons-react";
 import { RegistrationMode } from "@/utils/types";
 import { useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, useLoading } from "@/utils/store";
 import { checkboxStyles, inputStyles } from "@/styles/commonStyles";
 import { usernameValidator } from "@/utils";
-import { postRequest } from "@/utils/net";
+import { postRequest, putRequest } from "@/utils/net";
+import { startRegistration } from "@simplewebauthn/browser";
 
 interface RegisterFormProps {
     onSuccess: () => void;
@@ -23,6 +24,9 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [tokenInUrl, setTokenInUrl] = useState(false);
+    const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
+    const [tempToken, setTempToken] = useState<string | null>(null);
+    const [isCreatingPasskey, setIsCreatingPasskey] = useState(false);
     const { login } = useAuth();
     const queryClient = useQueryClient();
 
@@ -59,10 +63,10 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
     useEffect(() => {
         if (token) {
             setTokenInUrl(true);
-            form.setValues({ token})
-        }else{
+            form.setValues({ token })
+        } else {
             setTokenInUrl(false);
-            form.setValues({ token: ''})
+            form.setValues({ token: '' })
         }
     }, [token]);
 
@@ -71,36 +75,29 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
         setLoading(true);
 
         try {
-            
+
             const token = registrationMode === RegistrationMode.TOKEN ? values.token : undefined;
-            const registration = await postRequest('register', { body: { 
-                username: values.username,
-                password: values.password,
-                keepLogin: values.keepLogin, token
-            }});
+            const registration = await postRequest('register', {
+                body: {
+                    username: values.username,
+                    password: values.password,
+                    keepLogin: values.keepLogin, token
+                }
+            });
             if (registration.access_token) {
-                login(registration.access_token);
-            }else{
+                setTempToken(registration.access_token);
+                setShowPasskeyPrompt(true);
+            } else {
                 throw new Error('Token non trovato');
             }
-            setSuccess(true);
-            notifications.show({
-                title: 'Registrazione completata',
-                message: 'Il tuo account è stato creato con successo.',
-                color: 'green',
-                icon: <IconCheck />
-            });
 
-            queryClient.invalidateQueries({ queryKey: [] });
-            onSuccess()
-            
         } catch (error: any) {
-            const errorMessage = error?.message || 
-                                 error?.detail || 
-                                 'Si è verificato un errore durante la registrazione.';
-            
+            const errorMessage = error?.message ||
+                error?.detail ||
+                'Si è verificato un errore durante la registrazione.';
+
             setError(errorMessage);
-            
+
             if (errorMessage.includes('token') || errorMessage.includes('Token')) {
                 form.setFieldError('token', errorMessage);
             } else if (errorMessage.includes('username') || errorMessage.includes('esistente')) {
@@ -110,6 +107,63 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
             setLoading(false);
         }
     };
+
+    const finalizeRegistration = useCallback(() => {
+        if (tempToken) {
+            setShowPasskeyPrompt(false);
+            setTimeout(() => {
+                login(tempToken);
+                setSuccess(true);
+                notifications.show({
+                    title: 'Registrazione completata',
+                    message: 'Il tuo account è stato creato con successo.',
+                    color: 'green',
+                    icon: <IconCheck />
+                });
+                queryClient.invalidateQueries({ queryKey: [] });
+                onSuccess();
+                setTempToken(null);
+            }, 300); // Attendiamo che il modal finisca l'animazione di chiusura
+        }
+    }, [tempToken, login, queryClient, onSuccess]);
+
+    const handleCreatePasskeyFromPrompt = useCallback(async () => {
+        setIsCreatingPasskey(true);
+        try {
+            const headers = { Authorization: 'Bearer ' + tempToken };
+            const options = await postRequest('/passkey/register/options', {
+                body: { password: form.values.password },
+                headers
+            });
+            const response = await startRegistration(options.options);
+            const verifyResp = await postRequest('/passkey/register/verify', {
+                body: { response, token: options.token, name: "Dispositivo di " + form.values.username },
+                headers
+            });
+            if (verifyResp.verified) {
+                notifications.show({ title: 'Passkey aggiunta', message: 'Passkey registrata con successo', color: 'green' });
+            }
+        } catch (error: any) {
+            notifications.show({ title: 'Errore Passkey', message: error.message || 'Impossibile registrare la passkey', color: 'red' });
+        } finally {
+            setIsCreatingPasskey(false);
+            finalizeRegistration();
+        }
+    }, [tempToken, form.values.password, form.values.username, finalizeRegistration]);
+
+    const handlePostponePasskey = useCallback(() => {
+        finalizeRegistration();
+    }, [finalizeRegistration]);
+
+    const handleDismissPasskey = useCallback(async () => {
+        try {
+            const headers = { Authorization: 'Bearer ' + tempToken };
+            await putRequest('/users/me/passkey-prompt-dismiss', { headers });
+        } catch (e) {
+            console.error("Failed to dismiss prompt", e);
+        }
+        finalizeRegistration();
+    }, [tempToken, finalizeRegistration]);
 
     if (success) {
         return (
@@ -135,6 +189,20 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
             background: 'rgba(22, 22, 28, 0.8)',
             borderColor: 'var(--primary-border)'
         }}>
+            <Modal opened={showPasskeyPrompt} onClose={() => { }} withCloseButton={false} title={<Title order={3}>Aggiungi una Passkey</Title>} centered>
+                <Text mb="md">Aggiungi una passkey per accedere più velocemente usando l'impronta digitale o il Face ID, senza dover inserire la password al prossimo accesso!</Text>
+                <Stack>
+                    <Button loading={isCreatingPasskey} leftSection={<IconFingerprint size={20} />} onClick={handleCreatePasskeyFromPrompt}>
+                        Crea subito
+                    </Button>
+                    <Button variant="light" onClick={handlePostponePasskey}>
+                        Chiedilo al prossimo login
+                    </Button>
+                    <Button variant="subtle" color="gray" onClick={handleDismissPasskey}>
+                        Non chiedere più
+                    </Button>
+                </Stack>
+            </Modal>
             <Title order={3} style={{ color: '#eee' }} mb="md">
                 <Group gap="sm">
                     <IconUserPlus />
@@ -183,7 +251,7 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
                 {registrationMode === RegistrationMode.TOKEN && !tokenInUrl && (
                     <>
                         <Space h="md" />
-                        
+
                         <TextInput
                             label="Token di registrazione"
                             placeholder="Inserisci il token di registrazione"
@@ -195,7 +263,7 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
                 )}
 
                 <Space h="md" />
-                
+
                 <Checkbox
                     label="Rimani connesso"
                     {...form.getInputProps('keepLogin', { type: 'checkbox' })}
@@ -203,16 +271,16 @@ export const RegisterForm = ({ onSuccess, onCancel, registrationMode }: Register
                 />
 
                 <Group mt="xl" justify="space-between">
-                    <Button 
-                        variant="subtle" 
-                        color="gray" 
+                    <Button
+                        variant="subtle"
+                        color="gray"
                         onClick={onCancel}
                     >
                         Torna al login
                     </Button>
-                    
-                    <Button 
-                        type="submit" 
+
+                    <Button
+                        type="submit"
                         variant="gradient"
                         gradient={{ from: '#7a84ff', to: '#9ba3ff' }}
                         leftSection={<IconUserPlus size={20} />}

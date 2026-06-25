@@ -160,14 +160,16 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
 
     const finalizeLogin = useCallback(() => {
         if (tempToken) {
-            setToken(tempToken);
-            setTempToken(null);
             setShowPasskeyPrompt(false);
-            notifications.show({
-                title: "Accesso effettuato",
-                message: "Benvenuto su Splitify!",
-                color: "green",
-            });
+            setTimeout(() => {
+                setToken(tempToken);
+                notifications.show({
+                    title: "Accesso effettuato",
+                    message: "Benvenuto su Splitify!",
+                    color: "green",
+                });
+                setTempToken(null);
+            }, 300); // Attendiamo che il modal finisca l'animazione di chiusura per evitare bug di scroll-lock sul body
         }
     }, [tempToken, setToken]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { JwtPayload } from './types'
@@ -44,17 +44,20 @@ export const useLoadingStore = create<LoadingStore>()((set) => ({
 }))
 
 export const useLoading = () => {
-  const [loadingKey, setLoadingKey] = useState<string | undefined>(undefined)
-  const setLoading = useLoadingStore((state) => state.setLoading)
+  const [loadingKey] = useState(() => crypto.randomUUID());
+  const setLoadingStore = useLoadingStore((state) => state.setLoading);
+  
   useEffect(() => {
-    const k = crypto.randomUUID()
-    setLoadingKey(k)
-    setLoading(k, false)
     return () => {
-      setLoading(k, undefined)
-    }
-  }, [])
-  return { setLoading: (b: boolean) => setLoading(loadingKey, b) }
+      setLoadingStore(loadingKey, undefined);
+    };
+  }, [loadingKey, setLoadingStore]);
+
+  const setLoading = useCallback((b: boolean) => {
+    setLoadingStore(loadingKey, b);
+  }, [loadingKey, setLoadingStore]);
+
+  return { setLoading };
 }
 
 export const useIsLoading = () => {
