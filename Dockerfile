@@ -13,7 +13,7 @@ WORKDIR /execute
 COPY ./backend/package.json ./backend/bun.lock /execute/
 RUN bun install
 COPY ./backend/ /execute/
-RUN bun run build
+RUN bunx prisma generate && bun run build
 COPY --from=frontend /build/dist/ ./dist/frontend/
 
 CMD ["bun", "run", "start"]

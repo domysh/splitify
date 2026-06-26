@@ -18,7 +18,7 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    const formattedUsers = users.map(user => {
+    const formattedUsers = users.map((user: any) => {
       const { password, ...rest } = user;
       const lastAccess = user.sessions.length > 0 ? user.sessions[0].lastUsed : null;
       return { ...rest, lastAccess };
@@ -230,7 +230,7 @@ export const changePasswordWithPasskey = async (req: AuthRequest, res: Response)
       include: { passkeys: true }
     });
 
-    const passkey = userWithPasskeys?.passkeys.find(pk => pk.id === response.id);
+    const passkey = userWithPasskeys?.passkeys.find((pk: any) => pk.id === response.id);
     if (!passkey) {
       return res.status(400).json({ message: 'Passkey non trovata per questo utente' });
     }
@@ -323,7 +323,7 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     }
 
     const ownedBoards = await prisma.board.findMany({ where: { creatorId: userId } });
-    await Promise.all(ownedBoards.map(board => deleteBoardAction(board.id)));
+    await Promise.all(ownedBoards.map((board: any) => deleteBoardAction(board.id)));
 
     // Cascade delete on user should handle everything else, but if not we can delete explicitly.
     await prisma.user.delete({ where: { id: userId } });

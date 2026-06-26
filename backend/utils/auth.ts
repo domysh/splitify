@@ -122,7 +122,7 @@ export const createAccessToken = async (userId: string, duration: number = TOKEN
     });
 
     if (activeSessions.length > 10) {
-      const toDelete = activeSessions.slice(10).map(s => s.id);
+      const toDelete = activeSessions.slice(10).map((s: any) => s.id);
       await prisma.userSession.deleteMany({
         where: { id: { in: toDelete } }
       });
@@ -167,10 +167,10 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
         await prisma.userSession.deleteMany({
           where: { userId: user.id, expiresAt: { lte: now } }
         });
-        user.sessions = user.sessions.filter(s => s.expiresAt > now);
+        user.sessions = user.sessions.filter((s: any) => s.expiresAt > now);
     }
 
-    const session = user?.sessions.find(s => s.sessionId === decoded.sid);
+    const session = user?.sessions.find((s: any) => s.sessionId === decoded.sid);
 
     if (!session || !user) return null;
 
@@ -196,11 +196,11 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
                             prisma.userSession.update({
                                 where: { id: session.id },
                                 data: { location: newLocation }
-                            }).catch(err => console.error("Error updating location in background:", err));
+                            }).catch((err: any) => console.error("Error updating location in background:", err));
                         }
                     }
                 })
-                .catch(err => console.error("Error fetching updated IP location:", err));
+                .catch((err: any) => console.error("Error fetching updated IP location:", err));
         } else {
             await prisma.userSession.update({
               where: { id: session.id },

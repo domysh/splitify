@@ -47,7 +47,7 @@ prisma.$connect()
             });
         });
     })
-    .catch((err) => {
+    .catch((err: any) => {
         console.error("Failed to connect to the database:", err);
     });
 
