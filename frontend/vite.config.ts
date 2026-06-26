@@ -3,8 +3,18 @@ import { fileURLToPath, URL } from "url";
 import react from '@vitejs/plugin-react-swc'
 
 
+import transformImports from '@rolldown/plugin-transform-imports'
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    transformImports({
+      '@tabler/icons-react': {
+        transform: '@tabler/icons-react/dist/esm/icons/{{member}}.mjs',
+        preventFullImport: true,
+      }
+    })
+  ],
   resolve: {
     alias: [
       { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
