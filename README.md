@@ -6,14 +6,14 @@ Splitify ti aiuterà a dividere correttamente le spese tra i tuoi amici.
 
 ## Tecnologie utilizzate
 - Frontend: React (Vite), TypeScript, Mantine UI, TanStack Query, Zustand, Socket.IO
-- Backend: Node.js, Express, MongoDB (mongoose), typia, Socket.IO
+- Backend: Node.js, Express, Postgres (prisma), typia, Socket.IO
 - Containerization: Docker, 
 
 ## Come iniziare
 ```bash
 # Copia il compose.yml su una cartella su tuo server
 docker compose pull && docker compose up -d
-# verrà creata la cartella "./db" contenente i dati di mongodb
+# verrà creata la cartella "./db" contenente i dati di postgres
 # Questo comando aggiornerà l'immagine da ghcr.io all'ultima versione
 ```
 
@@ -24,7 +24,7 @@ Ecco le variabili supportate che puoi impostare:
 - `RP_ID`: Il dominio del server (es. `splitify.miodominio.com`). Il default è `localhost`. È **necessario** impostarlo in produzione affinché funzionino le Passkey.
 - `RP_ORIGIN`: L'origine completa per WebAuthn (es. `https://splitify.miodominio.com`). Il default è `http://localhost:8080`.
 - `DEFAULT_PSW`: Password di default per l'account `admin` che viene creato al primo avvio. Se non definita, verrà generata una password casuale (visibile nei log del container).
-- `MONGO_URL`: Stringa di connessione a MongoDB. Il default in produzione è `mongodb://mongo:27017/splitify`.
+- `DATABASE_URL`: Stringa di connessione a Postgres. Il default in produzione è `postgresql://splitify:splitify_password@postgres:5432/splitify?schema=public`.
 - `PORT`: Porta su cui il server backend ascolta internamente. Default `8080`.
 - `CORS_ALLOW`: Impostare a `true` o `1` per abilitare CORS.
 - `TRUST_PROXY`: Impostare a `true` (o a un IP/subnet specifico come `loopback` o `192.168.1.0/24`) se il server è dietro a un reverse proxy (es. Nginx, Cloudflare, Traefik). Questo permette al backend di leggere correttamente l'indirizzo IP reale del client.

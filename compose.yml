@@ -6,6 +6,8 @@ services:
       - 127.0.0.1:80:8080
     depends_on:
       - postgres
+    environment:
+      DATABASE_URL: postgresql://splitify:splitify_password@postgres:5432/splitify?schema=public
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
