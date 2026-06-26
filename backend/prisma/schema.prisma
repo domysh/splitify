@@ -12,16 +12,16 @@ datasource db {
 }
 
 model User {
-  id                     String         @id @default(uuid())
-  username               String         @unique
+  id                     String        @id @default(uuid())
+  username               String        @unique
   password               String
-  role                   String         @default("guest")
-  passkeyPromptDismissed Boolean        @default(false)
+  role                   String        @default("guest")
+  passkeyPromptDismissed Boolean       @default(false)
   pinnedBoards           String[]
   boardUsage             Json?
   sessions               UserSession[]
   passkeys               Passkey[]
-  boards                 Board[]        @relation("BoardCreator")
+  boards                 Board[]       @relation("BoardCreator")
   accesses               BoardAccess[]
 }
 
@@ -38,6 +38,8 @@ model UserSession {
   location  String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Passkey {
@@ -49,6 +51,8 @@ model Passkey {
   transports String[] // PostgreSQL supports string arrays
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Board {
@@ -62,6 +66,8 @@ model Board {
   members      Member[]
   transactions Transaction[]
   accesses     BoardAccess[]
+
+  @@index([creatorId])
 }
 
 model BoardAccess {
@@ -73,38 +79,45 @@ model BoardAccess {
   board      Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
   @@unique([userId, boardId])
+  @@index([boardId])
 }
 
 model Category {
-  id      String   @id @default(uuid())
-  boardId String
-  name    String
-  order   Int
-  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  id       String              @id @default(uuid())
+  boardId  String
+  name     String
+  order    Int
+  board    Board               @relation(fields: [boardId], references: [id], onDelete: Cascade)
   // M:N with Product and Member
   products CategoryToProduct[]
   members  CategoryToMember[]
+
+  @@index([boardId])
 }
 
 model Product {
-  id           String   @id @default(uuid())
+  id           String              @id @default(uuid())
   boardId      String
   name         String
   price        Float
-  board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  board        Board               @relation(fields: [boardId], references: [id], onDelete: Cascade)
   categories   CategoryToProduct[]
   transactions Transaction[]
+
+  @@index([boardId])
 }
 
 model Member {
-  id                 String   @id @default(uuid())
-  boardId            String
-  name               String
-  paid               Float
-  board              Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  categories         CategoryToMember[]
-  transactionsFrom   Transaction[] @relation("FromMember")
-  transactionsTo     Transaction[] @relation("ToMember")
+  id               String             @id @default(uuid())
+  boardId          String
+  name             String
+  paid             Float
+  board            Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  categories       CategoryToMember[]
+  transactionsFrom Transaction[]      @relation("FromMember")
+  transactionsTo   Transaction[]      @relation("ToMember")
+
+  @@index([boardId])
 }
 
 model CategoryToProduct {
@@ -114,6 +127,7 @@ model CategoryToProduct {
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@id([categoryId, productId])
+  @@index([productId])
 }
 
 model CategoryToMember {
@@ -123,6 +137,7 @@ model CategoryToMember {
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@id([categoryId, memberId])
+  @@index([memberId])
 }
 
 model Transaction {
@@ -139,6 +154,8 @@ model Transaction {
   fromMember   Member?  @relation("FromMember", fields: [fromMemberId], references: [id], onDelete: Cascade)
   toMember     Member?  @relation("ToMember", fields: [toMemberId], references: [id], onDelete: Cascade)
   product      Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
 }
 
 model Env {
