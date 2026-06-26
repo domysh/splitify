@@ -1,11 +1,7 @@
 import { Response } from 'express';
-import Transaction from '../models/Transaction';
-import Member from '../models/Member';
-import Product from '../models/Product';
-import { ObjectId } from 'mongodb';
+import { prisma } from '../utils/prisma';
 import { AddTransaction, AuthRequest, BoardPermission } from '../models/types';
 import { emitBoardUpdate } from '../utils/socket';
-import { generateRandomObjectId } from '../utils';
 import { getAuthenticatedBoard } from '../utils';
 
 export const createTransactionHelper = async (
@@ -16,31 +12,30 @@ export const createTransactionHelper = async (
   description: string,
   productId?: string | null
 ) => {
-  const transaction = new Transaction({
-    _id: generateRandomObjectId(),
-    boardId: new ObjectId(boardId) as any,
-    fromMemberId: fromMemberId ? new ObjectId(fromMemberId) : null,
-    toMemberId: toMemberId ? new ObjectId(toMemberId) : null,
-    amount,
-    description,
-    productId: productId ? new ObjectId(productId) as any : null,
-    timestamp: new Date()
+  const transaction = await prisma.transaction.create({
+    data: {
+      boardId,
+      fromMemberId: fromMemberId || null,
+      toMemberId: toMemberId || null,
+      amount,
+      description,
+      productId: productId || null,
+      timestamp: new Date()
+    }
   });
 
-  await transaction.save();
-
   if (fromMemberId) {
-    await Member.findByIdAndUpdate(
-      fromMemberId,
-      { $inc: { paid: amount } }
-    );
+    await prisma.member.update({
+      where: { id: fromMemberId },
+      data: { paid: { increment: amount } }
+    });
   }
 
   if (toMemberId) {
-    await Member.findByIdAndUpdate(
-      toMemberId,
-      { $inc: { paid: -amount } }
-    );
+    await prisma.member.update({
+      where: { id: toMemberId },
+      data: { paid: { decrement: amount } }
+    });
   }
 
   emitBoardUpdate(boardId, ['transactions', 'members']);
@@ -56,8 +51,16 @@ export const getBoardTransactions = async (req: AuthRequest, res: Response) => {
     if (!board || !perm) {
       return res.status(404).json({ message: 'Board not found' });
     }
-    const transactions = await Transaction.find({ boardId: new ObjectId(boardId) as any }).sort({ timestamp: -1 });
-    res.json(transactions);
+    const transactions = await prisma.transaction.findMany({
+      where: { boardId },
+      orderBy: { timestamp: 'desc' }
+    });
+    
+    const formatted = transactions.map(t => ({
+      ...t,
+      id: t.id
+    }));
+    res.json(formatted);
   } catch (err) {
     console.error('Error fetching transactions:', err);
     return res.status(400).json({ message: 'Failed to fetch transactions' });
@@ -91,29 +94,27 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
     }
 
     if (transactionData.fromMemberId) {
-      const fromMember = await Member.findById(transactionData.fromMemberId);
-      if (!fromMember || fromMember.boardId.toString() !== boardId) {
+      const fromMember = await prisma.member.findFirst({ where: { id: transactionData.fromMemberId } });
+      if (!fromMember || fromMember.boardId !== boardId) {
         return res.status(400).json({ message: 'From member not found' });
       }
     }
 
     if (transactionData.toMemberId) {
-      const toMember = await Member.findById(transactionData.toMemberId);
-      if (!toMember || toMember.boardId.toString() !== boardId) {
+      const toMember = await prisma.member.findFirst({ where: { id: transactionData.toMemberId } });
+      if (!toMember || toMember.boardId !== boardId) {
         res.status(400).json({ message: 'To member not found' });
         return;
       }
     }
 
-
     if (transactionData.productId) {
-      const product = await Product.findById(transactionData.productId);
-      if (!product || product.boardId.toString() !== boardId) {
+      const product = await prisma.product.findFirst({ where: { id: transactionData.productId } });
+      if (!product || product.boardId !== boardId) {
         res.status(400).json({ message: 'Product not found' });
         return;
       }
     }
-
 
     const transaction = await createTransactionHelper(
       boardId,
@@ -124,7 +125,7 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
       transactionData.productId
     );
 
-    res.status(201).json({ id: transaction._id.toString() });
+    res.status(201).json({ id: transaction.id });
   } catch (err) {
     console.error('Error creating transaction:', err);
     res.status(400).json({ message: 'Failed to create transaction' });
@@ -141,7 +142,10 @@ export const cancelTransaction = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const transaction = await Transaction.findOne({ _id: new ObjectId(transactionId) as any, boardId: new ObjectId(boardId) as any });
+    const transaction = await prisma.transaction.findFirst({
+      where: { id: transactionId, boardId }
+    });
+    
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
@@ -152,26 +156,27 @@ export const cancelTransaction = async (req: AuthRequest, res: Response) => {
 
     // Reverse the transaction effects
     if (transaction.fromMemberId) {
-      await Member.findByIdAndUpdate(
-        transaction.fromMemberId,
-        { $inc: { paid: -transaction.amount } }
-      );
+      await prisma.member.update({
+        where: { id: transaction.fromMemberId },
+        data: { paid: { decrement: transaction.amount } }
+      });
     }
 
     if (transaction.toMemberId) {
-      await Member.findByIdAndUpdate(
-        transaction.toMemberId,
-        { $inc: { paid: transaction.amount } }
-      );
+      await prisma.member.update({
+        where: { id: transaction.toMemberId },
+        data: { paid: { increment: transaction.amount } }
+      });
     }
 
     if (transaction.productId) {
-      await Product.findByIdAndDelete(transaction.productId);
-      transaction.productId = null;
+      await prisma.product.delete({ where: { id: transaction.productId } }).catch(() => {});
     }
 
-    transaction.cancelled = true;
-    await transaction.save();
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { cancelled: true, productId: null }
+    });
 
     emitBoardUpdate(boardId, ['transactions', 'members', 'products']);
     res.json({ status: 'ok', message: 'Transaction cancelled' });

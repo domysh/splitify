@@ -1,14 +1,12 @@
 import { Response } from "express";
 import { AuthRequest } from "../models/types";
-import User from "../models/User";
-import Board from "../models/Board";
-import Transaction from "../models/Transaction";
+import { prisma } from "../utils/prisma";
 
 export const getStats = async (req: AuthRequest, res: Response) => {
     const [userCount, boardCount, transactionCount] = await Promise.all([
-        User.countDocuments(),
-        Board.countDocuments(),
-        Transaction.countDocuments()
+        prisma.user.count(),
+        prisma.board.count(),
+        prisma.transaction.count()
     ]);
     res.json({
         users: userCount,

@@ -1,4 +1,3 @@
-
 services:
   website:
     restart: unless-stopped
@@ -6,10 +5,14 @@ services:
     ports:
       - 127.0.0.1:80:8080
     depends_on:
-      - mongo
-  mongo:
-    image: mongo:8
+      - postgres
+  postgres:
+    image: postgres:18-alpine
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: splitify
+      POSTGRES_PASSWORD: splitify_password
+      POSTGRES_DB: splitify
+      PGDATA: /var/lib/postgresql/data
     volumes:
-      - ./db:/data/db
-
+      - ./db-pg:/var/lib/postgresql

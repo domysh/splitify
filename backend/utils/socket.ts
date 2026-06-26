@@ -3,7 +3,6 @@ import { checkLogin } from '../utils/auth';
 import { Role, User } from '../models/types';
 import { CORS_ALLOW, DEBUG } from '../config';
 import { getAuthenticatedBoard } from '.';
-import { Document } from 'mongoose';
 
 let io: Server;
 
@@ -12,7 +11,7 @@ export interface SocketUpdateMessage {
   message?: string;
 }
 
-export interface AuthenticatedSocket extends Socket { user?: User & Document }
+export interface AuthenticatedSocket extends Socket { user?: User }
 
 export const initializeSocketIO = async (httpServer: any) => {
   io = new Server(httpServer, {

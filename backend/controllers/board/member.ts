@@ -1,11 +1,7 @@
 import { Response } from 'express';
-import Member from '../../models/Member';
-import Transaction from '../../models/Transaction';
-import Product from '../../models/Product';
+import { prisma } from '../../utils/prisma';
 import { emitBoardUpdate } from '../../utils/socket';
-import { ObjectId } from 'mongodb';
 import { AddMember, AuthRequest, BoardPermission } from '../../models/types';
-import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
 
 export const getBoardMembers = async (req: AuthRequest, res: Response) => {
@@ -18,13 +14,16 @@ export const getBoardMembers = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const members = await Member.find({ boardId: new ObjectId(id) as any });
+    const members = await prisma.member.findMany({
+      where: { boardId: id },
+      include: { categories: true }
+    });
 
     const formattedMembers = members.map(member => ({
-      id: member._id.toString(),
+      id: member.id,
       name: member.name,
       paid: member.paid,
-      categories: member.categories
+      categories: member.categories.map(c => c.categoryId)
     }));
 
     res.json(formattedMembers);
@@ -44,16 +43,21 @@ export const createMember = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const newMember = await Member.create({
-      _id: generateRandomObjectId(),
-      boardId: new ObjectId(id) as any,
-      name: memberData.name,
-      paid: memberData.paid || 0,
-      categories: memberData.categories.map(a => new ObjectId(a) as any) || []
+    const newMember = await prisma.member.create({
+      data: {
+        boardId: id,
+        name: memberData.name,
+        paid: memberData.paid || 0,
+        categories: {
+          create: memberData.categories.map(categoryId => ({
+            categoryId
+          }))
+        }
+      }
     });
 
     emitBoardUpdate(id, ['members']);
-    res.status(201).json({ id: newMember._id.toString() });
+    res.status(201).json({ id: newMember.id });
   } catch (err) {
     res.status(400).json({ message: 'Failed to create member' });
   }
@@ -70,26 +74,31 @@ export const updateMember = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const memberBefore = await Member.findOne({
-      _id: new ObjectId(member_id),
-      boardId: new ObjectId(id) as any
+    const existingMember = await prisma.member.findFirst({
+      where: { id: member_id, boardId: id }
     });
 
-    if (!memberBefore) {
-      res.status(400).json({ message: 'Board or member not found' });
-      return;
+    if (!existingMember) {
+      return res.status(404).json({ message: 'Board or member not found' });
     }
 
-    const updatedMember = await Member.findByIdAndUpdate(
-      member_id,
-      { $set: memberData },
-      { new: true }
-    );
+    // Delete existing categories and create new ones
+    await prisma.categoryToMember.deleteMany({
+      where: { memberId: member_id }
+    });
 
-    if (!updatedMember) {
-      res.status(400).json({ message: 'Board or member not found' });
-      return;
-    }
+    const updatedMember = await prisma.member.update({
+      where: { id: member_id },
+      data: {
+        name: memberData.name,
+        paid: memberData.paid,
+        categories: {
+          create: memberData.categories?.map(categoryId => ({
+            categoryId
+          })) || []
+        }
+      }
+    });
 
     emitBoardUpdate(id, ['members']);
     res.json({ id: member_id });
@@ -110,72 +119,75 @@ export const deleteMember = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const memberObjectId = new ObjectId(member_id);
-    const boardObjectId = new ObjectId(id);
-
     if (transferToMemberId) {
-      const transferObjectId = new ObjectId(transferToMemberId as string);
+      const transferId = transferToMemberId as string;
       
-      const newMember = await Member.findOne({ _id: transferObjectId, boardId: boardObjectId as any });
+      const newMember = await prisma.member.findFirst({ where: { id: transferId, boardId: id } });
       if (!newMember) return res.status(400).json({ message: 'Transfer member not found' });
       
-      const oldMember = await Member.findOne({ _id: memberObjectId, boardId: boardObjectId as any });
+      const oldMember = await prisma.member.findFirst({ where: { id: member_id, boardId: id } });
       if (!oldMember) return res.status(400).json({ message: 'Member not found' });
 
-      await Member.findByIdAndUpdate(newMember._id, { $inc: { paid: oldMember.paid } });
+      await prisma.member.update({
+        where: { id: newMember.id },
+        data: { paid: { increment: oldMember.paid } }
+      });
 
-      const transactions = await Transaction.find({
-        boardId: boardObjectId as any,
-        $or: [ { fromMemberId: memberObjectId }, { toMemberId: memberObjectId } ]
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          boardId: id,
+          OR: [ { fromMemberId: member_id }, { toMemberId: member_id } ]
+        }
       });
 
       for (const t of transactions) {
-        let newFrom = t.fromMemberId?.toString() === memberObjectId.toString() ? newMember._id : t.fromMemberId;
-        let newTo = t.toMemberId?.toString() === memberObjectId.toString() ? newMember._id : t.toMemberId;
+        let newFrom = t.fromMemberId === member_id ? newMember.id : t.fromMemberId;
+        let newTo = t.toMemberId === member_id ? newMember.id : t.toMemberId;
         
-        if (newFrom?.toString() === newTo?.toString() && newFrom != null) {
-          await Transaction.findByIdAndDelete(t._id);
+        if (newFrom === newTo && newFrom !== null) {
+          await prisma.transaction.delete({ where: { id: t.id } });
         } else {
-          await Transaction.findByIdAndUpdate(t._id, { fromMemberId: newFrom, toMemberId: newTo });
+          await prisma.transaction.update({
+            where: { id: t.id },
+            data: { fromMemberId: newFrom, toMemberId: newTo }
+          });
         }
       }
 
-      await Member.findByIdAndDelete(memberObjectId);
+      await prisma.member.delete({ where: { id: member_id } });
     } else {
-      const transactions = await Transaction.find({
-        boardId: boardObjectId as any,
-        $or: [
-          { fromMemberId: memberObjectId },
-          { toMemberId: memberObjectId }
-        ]
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          boardId: id,
+          OR: [ { fromMemberId: member_id }, { toMemberId: member_id } ]
+        }
       });
 
       for (const transaction of transactions) {
         if (!transaction.cancelled) {
-          if (transaction.fromMemberId && transaction.fromMemberId.toString() !== memberObjectId.toString()) {
-            await Member.findByIdAndUpdate(
-              transaction.fromMemberId,
-              { $inc: { paid: -transaction.amount } }
-            );
+          if (transaction.fromMemberId && transaction.fromMemberId !== member_id) {
+            await prisma.member.update({
+              where: { id: transaction.fromMemberId },
+              data: { paid: { decrement: transaction.amount } }
+            });
           }
 
-          if (transaction.toMemberId && transaction.toMemberId.toString() !== memberObjectId.toString()) {
-            await Member.findByIdAndUpdate(
-              transaction.toMemberId,
-              { $inc: { paid: transaction.amount } }
-            );
+          if (transaction.toMemberId && transaction.toMemberId !== member_id) {
+            await prisma.member.update({
+              where: { id: transaction.toMemberId },
+              data: { paid: { increment: transaction.amount } }
+            });
           }
 
           if (transaction.productId) {
-            await Product.findByIdAndDelete(transaction.productId);
+            await prisma.product.delete({ where: { id: transaction.productId } }).catch(() => {});
           }
         }
-        await Transaction.findByIdAndDelete(transaction._id);
+        await prisma.transaction.delete({ where: { id: transaction.id } }).catch(() => {});
       }
 
-      await Member.findOneAndDelete({
-        _id: memberObjectId,
-        boardId: boardObjectId as any
+      await prisma.member.delete({
+        where: { id: member_id }
       });
     }
 

@@ -1,0 +1,36 @@
+services:
+  mongo:
+    image: mongo:8
+    restart: "no"
+    volumes:
+      - ./db:/data/db
+    ports:
+      - 27017:27017
+
+  postgres:
+    image: postgres:18-alpine
+    restart: "no"
+    environment:
+      POSTGRES_USER: splitify
+      POSTGRES_PASSWORD: splitify_password
+      POSTGRES_DB: splitify
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - ./db-pg:/var/lib/postgresql
+    ports:
+      - 5432:5432
+
+  migrator:
+    image: oven/bun:latest
+    restart: "no"
+    depends_on:
+      - mongo
+      - postgres
+    environment:
+      MONGO_URL: mongodb://mongo:27017/splitify
+      DATABASE_URL: postgresql://splitify:splitify_password@postgres:5432/splitify
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    command: >
+      sh -c "bun install mongoose@8.8.4 && bunx prisma db push --accept-data-loss && bun run migrate.ts"

@@ -1,61 +1,21 @@
-import express from "express";
-import cors from "cors";
-import { json, urlencoded } from "body-parser";
-import mongoose from "mongoose";
 import http from "http";
-import path from "path";
-import apiRoutes from "./routes";
+import app from "./app";
 import { initializeSocketIO } from "./utils/socket";
-import { MONGO_URL, DEBUG, CORS_ALLOW, TRUST_PROXY } from "./config";
 import crypto from "crypto";
-import User from "./models/User";
+import { prisma } from "./utils/prisma";
 import { Role } from "./models/types";
 import { hashPassword } from "./utils/auth";
 
-const app = express();
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
-
-if (TRUST_PROXY) {
-    if (TRUST_PROXY.toLowerCase() === "true") {
-        app.set("trust proxy", true);
-    } else if (!isNaN(Number(TRUST_PROXY))) {
-        app.set("trust proxy", Number(TRUST_PROXY));
-    } else {
-        app.set("trust proxy", TRUST_PROXY);
-    }
-}
-
-app.use(
-    cors({
-        origin: CORS_ALLOW || DEBUG ? "*" : false,
-        credentials: true,
-    }),
-);
-app.use(json());
-app.use(urlencoded({ extended: true }));
-
-app.use("/api", apiRoutes);
 
 initializeSocketIO(server).then(() => {
     console.log("Socket.IO initialized");
 });
 
-if (!DEBUG) {
-    app.use(express.static(path.join(__dirname, "frontend")));
-
-    app.get(/.*/, (req, res) => {
-        if (req.path.startsWith("/api") || req.path.startsWith("/sock")) {
-            res.status(404).send("Not Found");
-            return;
-        }
-        res.sendFile(path.join(__dirname, "frontend", "index.html"));
-    });
-}
-
 const initAdminUser = async () => {
     try {
-        const adminUser = await User.findOne({ role: Role.ADMIN });
+        const adminUser = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
 
         if (!adminUser) {
             const DEFAULT_PSW =
@@ -63,13 +23,14 @@ const initAdminUser = async () => {
                 crypto.randomBytes(16).toString("hex");
             const hashedPassword = await hashPassword(DEFAULT_PSW);
 
-            const admin = new User({
-                username: "admin",
-                password: hashedPassword,
-                role: Role.ADMIN,
+            await prisma.user.create({
+                data: {
+                    username: "admin",
+                    password: hashedPassword,
+                    role: Role.ADMIN,
+                }
             });
 
-            await admin.save();
             console.log("'admin' Created! Password:", DEFAULT_PSW);
         }
     } catch (error) {
@@ -77,8 +38,7 @@ const initAdminUser = async () => {
     }
 };
 
-mongoose
-    .connect(MONGO_URL, { family: 4 })
+prisma.$connect()
     .then(() => {
         console.log("Connected to the database");
         initAdminUser().then(() => {
@@ -93,7 +53,7 @@ mongoose
 
 process.on("SIGINT", async () => {
     try {
-        await mongoose.connection.close();
+        await prisma.$disconnect();
         console.log("Database connection closed");
         process.exit(0);
     } catch (err) {

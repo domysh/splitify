@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                     String         @id @default(uuid())
+  username               String         @unique
+  password               String
+  role                   String         @default("guest")
+  passkeyPromptDismissed Boolean        @default(false)
+  pinnedBoards           String[]
+  boardUsage             Json?
+  sessions               UserSession[]
+  passkeys               Passkey[]
+  boards                 Board[]        @relation("BoardCreator")
+  accesses               BoardAccess[]
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  sessionId String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  lastUsed  DateTime @default(now())
+  os        String?
+  browser   String?
+  device    String?
+  ip        String?
+  location  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Passkey {
+  id         String   @id
+  name       String?
+  createdAt  DateTime @default(now())
+  publicKey  Bytes
+  counter    Int
+  transports String[] // PostgreSQL supports string arrays
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Board {
+  id           String        @id @default(uuid())
+  name         String
+  isPublic     Boolean       @default(false)
+  creatorId    String
+  creator      User          @relation("BoardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  categories   Category[]
+  products     Product[]
+  members      Member[]
+  transactions Transaction[]
+  accesses     BoardAccess[]
+}
+
+model BoardAccess {
+  id         String @id @default(uuid())
+  userId     String
+  boardId    String
+  permission String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board      Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+}
+
+model Category {
+  id      String   @id @default(uuid())
+  boardId String
+  name    String
+  order   Int
+  board   Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  // M:N with Product and Member
+  products CategoryToProduct[]
+  members  CategoryToMember[]
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  boardId      String
+  name         String
+  price        Float
+  board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  categories   CategoryToProduct[]
+  transactions Transaction[]
+}
+
+model Member {
+  id                 String   @id @default(uuid())
+  boardId            String
+  name               String
+  paid               Float
+  board              Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  categories         CategoryToMember[]
+  transactionsFrom   Transaction[] @relation("FromMember")
+  transactionsTo     Transaction[] @relation("ToMember")
+}
+
+model CategoryToProduct {
+  categoryId String
+  productId  String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, productId])
+}
+
+model CategoryToMember {
+  categoryId String
+  memberId   String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, memberId])
+}
+
+model Transaction {
+  id           String   @id @default(uuid())
+  boardId      String
+  fromMemberId String?
+  toMemberId   String?
+  amount       Float
+  description  String
+  productId    String?
+  timestamp    DateTime @default(now())
+  cancelled    Boolean  @default(false)
+  board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fromMember   Member?  @relation("FromMember", fields: [fromMemberId], references: [id], onDelete: Cascade)
+  toMember     Member?  @relation("ToMember", fields: [toMemberId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Env {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}

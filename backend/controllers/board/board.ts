@@ -1,157 +1,45 @@
 import { Response } from 'express';
-import Board from '../../models/Board';
-import Category from '../../models/Category';
-import Product from '../../models/Product';
-import Member from '../../models/Member';
-import Transaction from '../../models/Transaction';
-import BoardAccess from '../../models/BoardAccess';
+import { prisma } from '../../utils/prisma';
 import { emitBoardUpdate, emitUserUpdate } from '../../utils/socket';
 import { AddBoardForm, AuthRequest, BoardPermission, Role } from '../../models/types';
-import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
-import { ObjectId } from 'mongodb';
 
-const boardPipeline = ({ categories = true, products = true, members = true, stats = false, filters, loggedId }: {
-  categories: boolean,
-  products: boolean,
-  members: boolean,
-  stats: boolean,
-  filters?: any[]
-  loggedId?: string
-}) => {
-  return [
-    ...(filters ?? []),
-    ...(loggedId ? [{
-      $lookup: {
-        from: "boardaccesses",
-        let: { boardId: "$_id" },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ["$boardId", "$$boardId"] },
-                  { $eq: ["$userId", new ObjectId(loggedId)] }
-                ]
-              }
-            }
-          }
-        ],
-        as: "userAccess"
-      }
-    }] : []),
-    ...((categories || stats) ? [{
-      $lookup: {
-        from: "categories",
-        localField: "_id",
-        foreignField: "boardId",
-        as: "categories"
-      }
-    }] : []),
-    ...((products || stats) ? [{
-      $lookup: {
-        from: "products",
-        localField: "_id",
-        foreignField: "boardId",
-        as: "products"
-      }
-    }] : []),
-    ...((members || stats) ? [{
-      $lookup: {
-        from: "members",
-        localField: "_id",
-        foreignField: "boardId",
-        as: "members"
-      }
-    }] : []),
-    {
-      $lookup: {
-        from: "users",
-        localField: "creatorId",
-        foreignField: "_id",
-        as: "creatorData"
-      }
-    },
-    {
-      $project: {
-        name: 1,
-        isPublic: 1,
-        creatorId: 1,
-        ...(categories ? {
-          categories: {
-            $map: {
-              input: "$categories",
-              as: "cat",
-              in: {
-                id: { $toString: "$$cat._id" },
-                name: "$$cat.name",
-                order: "$$cat.order"
-              }
-            }
-          }
-        } : {}),
-        ...(products ? {
-          products: {
-            $map: {
-              input: "$products",
-              as: "prod",
-              in: {
-                id: { $toString: "$$prod._id" },
-                name: "$$prod.name",
-                price: "$$prod.price",
-                categories: "$$prod.categories"
-              }
-            }
-          }
-        } : {}),
-        ...(members ? {
-          members: {
-            $map: {
-              input: "$members",
-              as: "mem",
-              in: {
-                id: { $toString: "$$mem._id" },
-                name: "$$mem.name",
-                paid: "$$mem.paid",
-                categories: "$$mem.categories"
-              }
-            }
-          }
-        } : {}),
-        ...(stats ? {
-          stats: {
-            productsCount: { $size: "$products" },
-            categoriesCount: { $size: "$categories" },
-            membersCount: { $size: "$members" }
-          }
-        } : {}),
-        creator: {
-          $cond: {
-            if: { $gt: [{ $size: "$creatorData" }, 0] },
-            then: {
-              id: { $toString: { $arrayElemAt: ["$creatorData._id", 0] } },
-              username: { $arrayElemAt: ["$creatorData.username", 0] }
-            },
-            else: null
-          }
-        },
-        permission: loggedId ? {
-          $cond: {
-            if: { $eq: [{ $toString: "$creatorId" }, loggedId] },
-            then: BoardPermission.OWNER,
-            else: {
-              $cond: {
-                if: { $gt: [{ $size: "$userAccess" }, 0] },
-                then: { $arrayElemAt: ["$userAccess.permission", 0] },
-                else: null
-              }
-            }
-          }
-        } : BoardPermission.VIEWER // Guest user
-      }
+const fetchBoardWithPrisma = async (boardId: string, loggedId?: string, options: { categories?: boolean, products?: boolean, members?: boolean, stats?: boolean } = {}) => {
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+    include: {
+      creator: { select: { id: true, username: true } },
+      categories: options.categories || options.stats ? { orderBy: { order: 'asc' } } : false,
+      products: options.products || options.stats ? { include: { categories: true } } : false,
+      members: options.members || options.stats ? { include: { categories: true } } : false,
+      accesses: loggedId ? { where: { userId: loggedId } } : false
     }
-  ]
-}
+  });
+
+  if (!board) return null;
+
+  let permission = BoardPermission.VIEWER;
+  if (loggedId) {
+    if (board.creatorId === loggedId) {
+      permission = BoardPermission.OWNER;
+    } else if (board.accesses && board.accesses.length > 0) {
+      permission = board.accesses[0].permission as BoardPermission;
+    }
+  }
+
+  return {
+    id: board.id,
+    name: board.name,
+    isPublic: board.isPublic,
+    creatorId: board.creatorId,
+    creator: board.creator,
+    permission,
+    ...(options.categories ? { categories: board.categories.map(c => ({ id: c.id, name: c.name, order: c.order })) } : {}),
+    ...(options.products ? { products: board.products.map(p => ({ id: p.id, name: p.name, price: p.price, categories: (p as any).categories?.map((c: any) => c.categoryId) || [] })) } : {}),
+    ...(options.members ? { members: board.members.map(m => ({ id: m.id, name: m.name, paid: m.paid, categories: (m as any).categories?.map((c: any) => c.categoryId) || [] })) } : {}),
+    ...(options.stats ? { stats: { productsCount: board.products.length, categoriesCount: board.categories.length, membersCount: board.members.length } } : {})
+  };
+};
 
 
 export const getBoards = async (req: AuthRequest, res: Response) => {
@@ -159,34 +47,47 @@ export const getBoards = async (req: AuthRequest, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Authentication required' });
 
-    res.json(
-      await Board.aggregate(boardPipeline({
-        members: false,
-        stats: true,
-        products: false,
+    const boards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { creatorId: user.id },
+          { accesses: { some: { userId: user.id } } }
+        ]
+      },
+      include: {
+        creator: { select: { id: true, username: true } },
         categories: true,
-        filters: [
-          {
-            $lookup: {
-              from: 'boardaccesses',
-              localField: '_id',
-              foreignField: 'boardId',
-              as: 'accesses'
-            }
-          },
-          {
-            $match: {
-              $or: [
-                { creatorId: new ObjectId(user.id as string) },
-                { 'accesses.userId': new ObjectId(user.id as string) }
-              ]
-            }
-          },
-          { $project: { accesses: 0 } } // Remove the joined accesses from results
-        ],
-        loggedId: user.id as string
-      }))
-    )
+        products: { include: { categories: true } },
+        members: { include: { categories: true } },
+        accesses: { where: { userId: user.id } }
+      }
+    });
+
+    const result = boards.map(board => {
+      let permission = BoardPermission.VIEWER;
+      if (board.creatorId === user.id) {
+        permission = BoardPermission.OWNER;
+      } else if (board.accesses.length > 0) {
+        permission = board.accesses[0].permission as BoardPermission;
+      }
+
+      return {
+        id: board.id,
+        name: board.name,
+        isPublic: board.isPublic,
+        creatorId: board.creatorId,
+        creator: board.creator,
+        permission,
+        categories: board.categories.map(c => ({ id: c.id, name: c.name, order: c.order })),
+        stats: {
+          productsCount: board.products.length,
+          categoriesCount: board.categories.length,
+          membersCount: board.members.length
+        }
+      };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error('Error in getBoards:', err);
     res.status(500).json({ message: 'Failed to fetch boards' });
@@ -202,16 +103,15 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const board = new Board({
-      _id: generateRandomObjectId(),
-      name: boardData.name,
-      isPublic: boardData.isPublic || false,
-      creatorId: user.id
+    const board = await prisma.board.create({
+      data: {
+        name: boardData.name,
+        isPublic: boardData.isPublic || false,
+        creatorId: user.id
+      }
     });
 
-    await board.save();
-
-    res.status(201).json({ id: board._id.toString() });
+    res.status(201).json({ id: board.id });
   } catch (err) {
     console.error('Error creating board:', err);
     res.status(400).json({ message: 'Failed to create board' });
@@ -221,45 +121,33 @@ export const createBoard = async (req: AuthRequest, res: Response) => {
 export const getBoard = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-
     const user = req.user;
-    const [board] = await getAuthenticatedBoard(id, user?.id);
-    if (!board) {
+    
+    const [boardAuth] = await getAuthenticatedBoard(id, user?.id);
+    if (!boardAuth) {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    if (user) {
-      if (!user.boardUsage) {
-        user.boardUsage = {};
+    const result = await fetchBoardWithPrisma(id, user?.id, { categories: true, products: true, members: true, stats: false });
+    
+    if (result) {
+      if (user) {
+        const currentUsage = (user.boardUsage as Record<string, number>) || {};
+        currentUsage[id] = Date.now();
+        prisma.user.update({
+          where: { id: user.id },
+          data: { boardUsage: currentUsage }
+        }).then(() => {
+          emitUserUpdate(user.id, ['me']);
+        }).catch(e => console.error("Failed to update board usage", e));
       }
-      const usageMap = user.boardUsage as any;
-      if (typeof usageMap.get === 'function') {
-        usageMap.set(id, Date.now());
-      } else {
-        usageMap[id] = Date.now();
-        user.markModified('boardUsage');
-      }
-      await user.save();
-      if (user._id) emitUserUpdate(user._id.toString(), ['me']);
+      res.json(result);
+    } else {
+      res.status(404).json({ message: 'Board not found' });
     }
-
-    res.json(
-      await Board.aggregate(boardPipeline({
-        members: true,
-        stats: false,
-        products: true,
-        categories: true,
-        filters: [{ $match: { _id: new ObjectId(id) as any } }],
-        loggedId: user?.id
-      })).then((result) => {
-        if (result.length > 0) {
-          return result[0];
-        }
-        throw new Error("Can't fetch board");
-      })
-    )
   } catch (err) {
-    return res.status(400).json({ message: 'Failed to fetch board' });
+    console.error(err);
+    res.status(400).json({ message: 'Failed to fetch board' });
   }
 };
 
@@ -274,12 +162,13 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const updatedBoard = await Board.findByIdAndUpdate(
-      id, { $set: boardData }, { new: true }
-    )
+    const updatedBoard = await prisma.board.update({
+      where: { id },
+      data: { name: boardData.name, isPublic: boardData.isPublic }
+    });
 
     emitBoardUpdate(id);
-    res.json({ id: updatedBoard?._id.toString() });
+    res.json({ id: updatedBoard.id });
   } catch (err) {
     console.error('Error updating board:', err);
     res.status(400).json({ message: 'Failed to update board' });
@@ -287,14 +176,7 @@ export const updateBoard = async (req: AuthRequest, res: Response) => {
 }
 
 export const deleteBoardAction = async (id: string) => {
-  await Promise.all([
-    Transaction.deleteMany({ boardId: new ObjectId(id) as any }),
-    Category.deleteMany({ boardId: new ObjectId(id) as any }),
-    Product.deleteMany({ boardId: new ObjectId(id) as any }),
-    Member.deleteMany({ boardId: new ObjectId(id) as any }),
-    BoardAccess.deleteMany({ boardId: new ObjectId(id) as any }),
-    Board.findByIdAndDelete(id)
-  ])
+  await prisma.board.delete({ where: { id } }); // Cascade deletes will handle relations
 }
 
 export const deleteBoard = async (req: AuthRequest, res: Response) => {
@@ -307,7 +189,7 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    await deleteBoardAction(id)
+    await deleteBoardAction(id);
     emitBoardUpdate(id);
 
     res.json({ id });
@@ -320,34 +202,36 @@ export const deleteBoard = async (req: AuthRequest, res: Response) => {
 export const togglePinBoard = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({ message: 'Authentication required' });
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Verify board exists and user has access
-    const [board] = await getAuthenticatedBoard(id, user.id);
-    if (!board) {
-      return res.status(404).json({ message: 'Board not found' });
-    }
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const boardObjectId = new ObjectId(id);
-    const pinIndex = user.pinnedBoards?.findIndex((b: any) => b.toString() === id) ?? -1;
+    const pinnedBoards = user.pinnedBoards || [];
+    let isPinned = false;
 
-    if (pinIndex === -1) {
-      if (!user.pinnedBoards) user.pinnedBoards = [];
-      user.pinnedBoards.push(boardObjectId as any);
+    if (pinnedBoards.includes(id)) {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { pinnedBoards: pinnedBoards.filter(b => b !== id) }
+        });
+        isPinned = false;
     } else {
-      user.pinnedBoards?.splice(pinIndex, 1);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { pinnedBoards: [...pinnedBoards, id] }
+        });
+        isPinned = true;
     }
+    
+    emitUserUpdate(userId, ['me']);
 
-    await user.save();
-    if (user._id) emitUserUpdate(user._id.toString(), ['me']);
-
-    res.json({ success: true, pinned: pinIndex === -1 });
+    res.json({ success: true, pinned: isPinned });
   } catch (err) {
-    console.error('Error toggling pin:', err);
-    res.status(400).json({ message: 'Failed to toggle pin' });
+      console.error(err);
+      res.status(500).json({ success: false });
   }
 };

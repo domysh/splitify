@@ -1,13 +1,11 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import User from '../models/User';
-import Env from '../models/Env';
-import { AuthRequest, JwtPayload, User as UserType } from '../models/types';
-import crypto from 'crypto';
-import { Document } from 'mongoose';
+import { prisma } from './prisma';
 import { JWT_ALGORITHM } from '../config';
 import { jwtValidator } from '../middleware/validation';
 import { UAParser } from 'ua-parser-js';
+import crypto from 'crypto';
+import { AuthRequest, JwtPayload } from '../models/types';
 
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(10);
@@ -25,7 +23,7 @@ export const getAppSecret = async (): Promise<string> => {
     return APP_SECRET_CACHE;
   }
 
-  const secretDoc = await Env.findOne({ key: 'APP_SECRET' });
+  const secretDoc = await prisma.env.findUnique({ where: { key: 'APP_SECRET' } });
 
   if (secretDoc) {
     APP_SECRET_CACHE = secretDoc.value;
@@ -34,14 +32,17 @@ export const getAppSecret = async (): Promise<string> => {
 
   const newSecret = crypto.randomBytes(32).toString('hex');
 
-  const newSecretDoc = new Env({
-    key: 'APP_SECRET',
-    value: newSecret
+  const createdSecret = await prisma.env.upsert({
+    where: { key: 'APP_SECRET' },
+    update: {},
+    create: {
+      key: 'APP_SECRET',
+      value: newSecret
+    }
   });
 
-  await newSecretDoc.save();
-  APP_SECRET_CACHE = newSecret;
-  return newSecret;
+  APP_SECRET_CACHE = createdSecret.value;
+  return createdSecret.value;
 };
 
 export const TOKEN_DURATION = {
@@ -61,10 +62,14 @@ export const createAccessToken = async (userId: string, duration: number = TOKEN
   const createdAt = Math.floor(Date.now() / 1000);
   const expirationTime = createdAt + duration;
 
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { sessions: true } });
   if (user) {
     const now = new Date();
-    user.sessions = user.sessions.filter(s => s.sessionId !== newSessionId && s.expiresAt > now);
+    
+    // Clean up expired sessions in DB
+    await prisma.userSession.deleteMany({
+      where: { userId, expiresAt: { lte: now } }
+    });
 
     let os = 'Sconosciuto';
     let browser = 'Sconosciuto';
@@ -96,25 +101,32 @@ export const createAccessToken = async (userId: string, duration: number = TOKEN
       }
     }
 
-    user.sessions.push({
-      sessionId: newSessionId,
-      createdAt: new Date(createdAt * 1000),
-      expiresAt: new Date(expirationTime * 1000),
-      lastUsed: new Date(createdAt * 1000),
-      os,
-      browser,
-      device,
-      ip: ipAddress || 'Sconosciuto',
-      location
+    await prisma.userSession.create({
+      data: {
+        sessionId: newSessionId,
+        createdAt: new Date(createdAt * 1000),
+        expiresAt: new Date(expirationTime * 1000),
+        lastUsed: new Date(createdAt * 1000),
+        os,
+        browser,
+        device,
+        ip: ipAddress || 'Sconosciuto',
+        location,
+        userId
+      }
     });
 
-    user.sessions.sort((a, b) => b.lastUsed.getTime() - a.lastUsed.getTime());
+    const activeSessions = await prisma.userSession.findMany({
+      where: { userId },
+      orderBy: { lastUsed: 'desc' }
+    });
 
-    if (user.sessions.length > 10) {
-      user.sessions = user.sessions.slice(0, 10);
+    if (activeSessions.length > 10) {
+      const toDelete = activeSessions.slice(10).map(s => s.id);
+      await prisma.userSession.deleteMany({
+        where: { id: { in: toDelete } }
+      });
     }
-
-    await user.save();
   }
 
   const finalPayload = {
@@ -136,7 +148,7 @@ export const canRefreshToken = (payload: JwtPayload): boolean => {
 };
 
 export interface CheckLoginResponse {
-  user?: UserType & Document;
+  user?: any;
   token?: JwtPayload;
 }
 
@@ -148,10 +160,13 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
       ignoreExpiration: false,
     }));
 
-    const user = await User.findById(decoded.sub);
+    const user = await prisma.user.findUnique({ where: { id: decoded.sub }, include: { sessions: true } });
     
     if (user) {
         const now = new Date();
+        await prisma.userSession.deleteMany({
+          where: { userId: user.id, expiresAt: { lte: now } }
+        });
         user.sessions = user.sessions.filter(s => s.expiresAt > now);
     }
 
@@ -159,9 +174,16 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
 
     if (!session || !user) return null;
 
-    session.lastUsed = new Date();
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: { lastUsed: new Date() }
+    });
 
     if (currentIp && session.ip !== currentIp && currentIp !== 'Sconosciuto') {
+        await prisma.userSession.update({
+          where: { id: session.id },
+          data: { ip: currentIp }
+        });
         session.ip = currentIp;
         
         if (currentIp !== '127.0.0.1' && currentIp !== '::1') {
@@ -171,20 +193,22 @@ export const verifyToken = async (token: string, currentIp?: string): Promise<Ch
                     if (data.status === 'success') {
                         const newLocation = `${data.city}, ${data.country}`;
                         if (session.location !== newLocation) {
-                            User.updateOne(
-                                { _id: user._id, "sessions.sessionId": session.sessionId },
-                                { $set: { "sessions.$.location": newLocation } }
-                            ).catch(err => console.error("Error updating location in background:", err));
+                            prisma.userSession.update({
+                                where: { id: session.id },
+                                data: { location: newLocation }
+                            }).catch(err => console.error("Error updating location in background:", err));
                         }
                     }
                 })
                 .catch(err => console.error("Error fetching updated IP location:", err));
         } else {
+            await prisma.userSession.update({
+              where: { id: session.id },
+              data: { location: 'Sconosciuto' }
+            });
             session.location = 'Sconosciuto';
         }
     }
-
-    await user?.save();
 
     return {
       user,

@@ -14,7 +14,8 @@
     "strictNullChecks": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["bun-types"]
   },
   "ts-node": {
     "transpileOnly": true

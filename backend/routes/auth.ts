@@ -27,7 +27,7 @@ import { Role } from "../models/types";
 const router = Router();
 
 router.post("/login", r(validateLogin), r(login));
-router.get("/me", authenticate, getMe);
+router.get("/me", authenticate, r(getMe));
 router.post("/register", r(validateRegistration), r(register));
 router.post("/register/:token", r(validateRegistration), r(register));
 router.post("/token/refresh", r(refreshToken));

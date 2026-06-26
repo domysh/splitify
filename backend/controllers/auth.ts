@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import User from '../models/User';
+import { prisma } from '../utils/prisma';
 import { createAccessToken, hashPassword, verifyPassword } from '../utils/auth';
 import { AuthRequest, LoginRequest, RegistrationRequest, Role, SetRegistrationMode } from '../models/types';
-import { generateRandomObjectId } from '../utils';
 import { broadCastUpdate, emitAdminUpdate } from '../utils/socket';
-import Env from '../models/Env';
 import crypto from 'crypto';
 import { randomSleep } from '../utils';
 import { TOKEN_DURATION, canRefreshToken, createChallengeToken, verifyChallengeToken } from '../utils/auth';
@@ -16,7 +14,6 @@ import {
 } from '@simplewebauthn/server';
 import { isoUint8Array } from '@simplewebauthn/server/helpers';
 import { RP_ID, RP_NAME, RP_ORIGIN } from '../config';
-import { PasskeyCredential } from '../models/types';
 
 export const login = async (req: AuthRequest, res: Response) => {
   const { username, password, keepLogin }: LoginRequest = req.body;
@@ -26,7 +23,7 @@ export const login = async (req: AuthRequest, res: Response) => {
   }
 
   await randomSleep();
-  const user = await User.findOne({ username: username.toLowerCase() });
+  const user = await prisma.user.findFirst({ where: { username: username.toLowerCase() } });
   if (!user) {
     return res.status(406).json({ message: 'User not found!' });
   }
@@ -36,13 +33,12 @@ export const login = async (req: AuthRequest, res: Response) => {
     return res.status(406).json({ message: 'Wrong password!' });
   }
 
-  // Determine token duration based on keepLogin option
   const tokenDuration = keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
 
   const userAgent = req.headers['user-agent'];
   const ipAddress = req.ip || req.socket.remoteAddress;
 
-  const token = await createAccessToken(user._id.toString(), tokenDuration, undefined, userAgent, ipAddress);
+  const token = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
 
   return res.json({
     access_token: token,
@@ -53,8 +49,7 @@ export const login = async (req: AuthRequest, res: Response) => {
 
 export const refreshToken = async (req: AuthRequest, res: Response) => {
   try {
-
-    const token = req.token
+    const token = req.token;
     const user = req.user;
 
     if (!token || !user) {
@@ -67,18 +62,18 @@ export const refreshToken = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const session = user.sessions.find(s => s.sessionId === token.sid);
+    // `user.sessions` comes from `checkLogin` which fetches sessions from Prisma
+    const session = user.sessions?.find((s: any) => s.sessionId === token.sid);
 
     if (!session) {
       return res.status(400).json({ message: 'Session not found' });
     }
 
-    const originalDuration = token.exp - token.iat
+    const originalDuration = token.exp - token.iat;
 
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.socket.remoteAddress;
 
-    // Create a new token with the same duration and sessionId
     const newToken = await createAccessToken(token.sub, originalDuration, token.sid, userAgent, ipAddress);
 
     return res.json({
@@ -99,7 +94,7 @@ export enum RegistrationMode {
 }
 
 export const getRegistrationMode = async () => {
-  const registerMode = await Env.findOne({ key: 'REGISTRATION_MODE' });
+  const registerMode = await prisma.env.findFirst({ where: { key: 'REGISTRATION_MODE' } });
   if (!registerMode || !Object.values(RegistrationMode).map(v => v as string).includes(registerMode.value)) {
     return RegistrationMode.PRIVATE;
   }
@@ -107,19 +102,20 @@ export const getRegistrationMode = async () => {
 };
 
 export const getRegistrationToken = async (): Promise<string> => {
-  const secretDoc = await Env.findOne({ key: 'REGISTRATION_TOKEN' });
+  const secretDoc = await prisma.env.findFirst({ where: { key: 'REGISTRATION_TOKEN' } });
   if (secretDoc) {
     return secretDoc.value;
   }
 
   const newSecret = crypto.randomBytes(32).toString('hex');
 
-  const newSecretDoc = new Env({
-    key: 'REGISTRATION_TOKEN',
-    value: newSecret
+  await prisma.env.create({
+    data: {
+      key: 'REGISTRATION_TOKEN',
+      value: newSecret
+    }
   });
 
-  await newSecretDoc.save();
   return newSecret;
 };
 
@@ -143,30 +139,30 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "'admin' is reserved" });
     }
 
-    const existingUser = await User.findOne({ username: lowercaseUsername });
+    const existingUser = await prisma.user.findFirst({ where: { username: lowercaseUsername } });
     if (existingUser) {
       return res.status(400).json({ message: 'Username already exists' });
     }
 
     const hashedPassword = await hashPassword(password);
-    const user = new User({
-      _id: generateRandomObjectId(),
-      username: lowercaseUsername,
-      password: hashedPassword,
-      role: Role.GUEST
+    const user = await prisma.user.create({
+      data: {
+        username: lowercaseUsername,
+        password: hashedPassword,
+        role: Role.GUEST
+      }
     });
 
-    await user.save();
     emitAdminUpdate(['users']);
 
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.socket.remoteAddress;
 
     const tokenDuration = keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
-    const newLoginToken = await createAccessToken(user._id.toString(), tokenDuration, undefined, userAgent, ipAddress);
+    const newLoginToken = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
 
     return res.status(201).json({
-      id: user._id.toString(),
+      id: user.id,
       access_token: newLoginToken,
       token_type: 'bearer',
       expires_in: tokenDuration
@@ -183,7 +179,7 @@ export const registrationInfo = async (req: AuthRequest, res: Response) => {
     token: undefined as string | undefined
   }
   if (req.user?.role === Role.ADMIN) {
-    result.token = await getRegistrationToken();;
+    result.token = await getRegistrationToken();
   }
   res.json(result);
 };
@@ -191,30 +187,29 @@ export const registrationInfo = async (req: AuthRequest, res: Response) => {
 export const setRegistrationInfo = async (req: AuthRequest, res: Response) => {
   const { mode, token }: SetRegistrationMode = req.body;
 
-  let modeDoc = await Env.findOne({ key: 'REGISTRATION_MODE' });
+  const modeDoc = await prisma.env.findFirst({ where: { key: 'REGISTRATION_MODE' } });
   if (modeDoc) {
-    modeDoc.value = mode;
-    await modeDoc.save();
-  } else {
-    modeDoc = new Env({
-      key: 'REGISTRATION_MODE',
-      value: mode
+    await prisma.env.update({
+      where: { id: modeDoc.id },
+      data: { value: mode }
     });
-    await modeDoc.save();
+  } else {
+    await prisma.env.create({
+      data: { key: 'REGISTRATION_MODE', value: mode }
+    });
   }
 
-
   if (mode === RegistrationMode.TOKEN && token) {
-    let tokenDoc = await Env.findOne({ key: 'REGISTRATION_TOKEN' });
+    const tokenDoc = await prisma.env.findFirst({ where: { key: 'REGISTRATION_TOKEN' } });
     if (tokenDoc) {
-      tokenDoc.value = token;
-      await tokenDoc.save();
-    } else {
-      tokenDoc = new Env({
-        key: 'REGISTRATION_TOKEN',
-        value: token
+      await prisma.env.update({
+        where: { id: tokenDoc.id },
+        data: { value: token }
       });
-      await tokenDoc.save();
+    } else {
+      await prisma.env.create({
+        data: { key: 'REGISTRATION_TOKEN', value: token }
+      });
     }
   }
 
@@ -226,7 +221,6 @@ export const setRegistrationInfo = async (req: AuthRequest, res: Response) => {
   });
 }
 
-
 export const getMe = async (req: AuthRequest, res: Response) => {
   const user = req.user;
 
@@ -235,22 +229,36 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  // Reload user to get passkeys and sessions
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { sessions: true, passkeys: true }
+  });
+
+  if (!fullUser) {
+    return res.status(401).json({ message: 'Not authenticated' });
+  }
+
   res.json({
-    id: user!._id?.toString(),
-    username: user.username,
-    role: user.role,
-    sessions: user.sessions,
-    pinnedBoards: user.pinnedBoards,
-    boardUsage: user.boardUsage,
-    passkeys: user.passkeys,
+    id: fullUser.id,
+    username: fullUser.username,
+    role: fullUser.role,
+    sessions: fullUser.sessions,
+    pinnedBoards: fullUser.pinnedBoards || [],
+    boardUsage: fullUser.boardUsage || {},
+    passkeys: fullUser.passkeys,
     currentSessionId: req.token?.sid,
-    passkeyPromptDismissed: user.passkeyPromptDismissed
+    passkeyPromptDismissed: fullUser.passkeyPromptDismissed
   });
 };
 
 export const passkeyRegisterStart = async (req: AuthRequest, res: Response) => {
-  const user = req.user;
+  const user = await prisma.user.findUnique({
+    where: { id: req.user?.id || '' },
+    include: { passkeys: true }
+  });
   const { password } = req.body;
+
   if (!user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
@@ -264,16 +272,16 @@ export const passkeyRegisterStart = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: 'Password errata' });
   }
 
-  const userPasskeys: PasskeyCredential[] = user.passkeys || [];
+  const userPasskeys = user.passkeys || [];
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: RP_ID,
-    userID: isoUint8Array.fromUTF8String(user._id!.toString()),
+    userID: isoUint8Array.fromUTF8String(user.id),
     userName: user.username,
     excludeCredentials: userPasskeys.map((passkey) => ({
       id: passkey.id,
-      transports: passkey.transports,
+      transports: passkey.transports as any,
     })),
     authenticatorSelection: {
       userVerification: 'preferred',
@@ -314,18 +322,16 @@ export const passkeyRegisterVerify = async (req: AuthRequest, res: Response) => 
   if (verification.verified && verification.registrationInfo) {
     const { credential } = verification.registrationInfo;
 
-    const newPasskey: PasskeyCredential = {
-      id: credential.id,
-      name: name || `Passkey ${new Date().toLocaleDateString()}`,
-      createdAt: new Date(),
-      publicKey: Buffer.from(credential.publicKey),
-      counter: credential.counter,
-      transports: credential.transports,
-    };
-
-    if (!user.passkeys) user.passkeys = [];
-    user.passkeys.push(newPasskey);
-    await user.save();
+    await prisma.passkey.create({
+      data: {
+        userId: user.id,
+        id: credential.id,
+        name: name || `Passkey ${new Date().toLocaleDateString()}`,
+        publicKey: Buffer.from(credential.publicKey),
+        counter: credential.counter,
+        transports: credential.transports || []
+      }
+    });
 
     return res.json({ verified: true });
   }
@@ -334,11 +340,13 @@ export const passkeyRegisterVerify = async (req: AuthRequest, res: Response) => 
 };
 
 export const passkeyLoginStart = async (req: AuthRequest, res: Response) => {
-  // Try to find user if username is provided (for non-discoverable auth)
-  let userPasskeys: PasskeyCredential[] = [];
+  let userPasskeys: any[] = [];
 
   if (req.body.username) {
-    const user = await User.findOne({ username: req.body.username.toLowerCase() });
+    const user = await prisma.user.findFirst({
+      where: { username: req.body.username.toLowerCase() },
+      include: { passkeys: true }
+    });
     if (user && user.passkeys) {
       userPasskeys = user.passkeys;
     }
@@ -365,18 +373,17 @@ export const passkeyLoginVerify = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: 'Invalid or expired challenge' });
   }
 
-  // Find user by credential ID
   const credentialId = response.id;
-  const user = await User.findOne({ 'passkeys.id': credentialId });
+  const passkey = await prisma.passkey.findFirst({
+    where: { id: credentialId },
+    include: { user: true }
+  });
 
-  if (!user) {
-    return res.status(400).json({ message: 'User not found for this passkey' });
-  }
-
-  const passkey = user.passkeys?.find((pk) => pk.id === credentialId);
   if (!passkey) {
     return res.status(400).json({ message: 'Passkey not found in user profile' });
   }
+
+  const user = passkey.user;
 
   let verification;
   try {
@@ -389,7 +396,7 @@ export const passkeyLoginVerify = async (req: AuthRequest, res: Response) => {
         id: passkey.id,
         publicKey: new Uint8Array(passkey.publicKey),
         counter: passkey.counter,
-        transports: passkey.transports,
+        transports: passkey.transports as any,
       },
     });
   } catch (error: any) {
@@ -398,23 +405,23 @@ export const passkeyLoginVerify = async (req: AuthRequest, res: Response) => {
   }
 
   if (verification.verified) {
-    // Update counter
-    passkey.counter = verification.authenticationInfo.newCounter;
-    await user.save();
+    await prisma.passkey.update({
+      where: { id: passkey.id },
+      data: { counter: verification.authenticationInfo.newCounter }
+    });
 
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.socket.remoteAddress;
 
-    // Login success - issue token
     const tokenDuration = req.body.keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
-    const loginToken = await createAccessToken(user._id!.toString(), tokenDuration, undefined, userAgent, ipAddress);
+    const loginToken = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
 
     return res.json({
       verified: true,
       access_token: loginToken,
       token_type: 'bearer',
       expires_in: tokenDuration,
-      user_id: user._id
+      user_id: user.id
     });
   }
 
@@ -433,15 +440,14 @@ export const deleteSession = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: 'Non puoi disconnettere la sessione attuale' });
   }
 
-  const initialLength = user.sessions?.length || 0;
-  user.sessions = (user.sessions || []).filter((s: any) => s.sessionId !== sessionId);
+  const deleted = await prisma.userSession.deleteMany({
+    where: { userId: user.id, sessionId: sessionId }
+  });
 
-  if (user.sessions.length === initialLength) {
+  if (deleted.count === 0) {
     return res.status(404).json({ message: 'Session not found' });
   }
 
-  user.markModified('sessions');
-  await user.save();
   return res.json({ message: 'Session deleted successfully' });
 };
 
@@ -451,14 +457,14 @@ export const deletePasskey = async (req: AuthRequest, res: Response) => {
 
   if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-  const initialLength = user.passkeys?.length || 0;
-  user.passkeys = user.passkeys?.filter(pk => pk.id !== passkeyId) || [];
+  const deleted = await prisma.passkey.deleteMany({
+    where: { userId: user.id, id: passkeyId }
+  });
 
-  if (user.passkeys.length === initialLength) {
+  if (deleted.count === 0) {
     return res.status(404).json({ message: 'Passkey not found' });
   }
 
-  await user.save();
   return res.json({ message: 'Passkey deleted successfully' });
 };
 
@@ -469,14 +475,14 @@ export const renamePasskey = async (req: AuthRequest, res: Response) => {
 
   if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-  const passkey = user.passkeys?.find(pk => pk.id === passkeyId);
-  if (!passkey) {
+  const updated = await prisma.passkey.updateMany({
+    where: { userId: user.id, id: passkeyId },
+    data: { name }
+  });
+
+  if (updated.count === 0) {
     return res.status(404).json({ message: 'Passkey not found' });
   }
-
-  passkey.name = name;
-  user.markModified('passkeys');
-  await user.save();
 
   return res.json({ message: 'Passkey renamed successfully' });
 };
@@ -489,9 +495,9 @@ export const deleteCurrentSession = async (req: AuthRequest, res: Response) => {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  user.sessions = (user.sessions || []).filter((s: any) => s.sessionId !== sessionId);
-  user.markModified('sessions');
-  await user.save();
+  await prisma.userSession.deleteMany({
+    where: { userId: user.id, sessionId: sessionId }
+  });
 
   return res.json({ success: true });
 };

@@ -20,7 +20,7 @@ const retryLogic = (failureCount:number, error:any) => {
 
 export const boardsQuery = () => useQuery<boardListing[], Error>({
     queryKey: ['boards'],
-    queryFn: () => getRequest('boards'),
+    queryFn: () => getRequest('boards').then((data) => (data as boardListing[]).sort((a, b) => a.name.localeCompare(b.name))),
     refetchInterval: 0,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
@@ -29,7 +29,13 @@ export const boardsQuery = () => useQuery<boardListing[], Error>({
 
 export const boardQuery = (id: string) => useQuery<board, Error>({
     queryKey: ['boards', id],
-    queryFn: () => getRequest(`boards/${id}`),
+    queryFn: () => getRequest(`boards/${id}`).then((data) => {
+        const b = data as board;
+        b.categories.sort((a, b) => a.order - b.order);
+        b.members.sort((a, b) => a.name.localeCompare(b.name));
+        b.products.sort((a, b) => a.name.localeCompare(b.name));
+        return b;
+    }),
     refetchInterval: 0,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
@@ -58,21 +64,21 @@ export const meQuery = () => {
 
 export const transactionsQuery = (boardId: string) => useQuery<transaction[], Error>({
     queryKey: ['boards', boardId, 'transactions'],
-    queryFn: () => getRequest(`transactions/${boardId}`),
+    queryFn: () => getRequest(`transactions/${boardId}`).then((data) => (data as transaction[]).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())),
     staleTime: 5 * 60 * 1000
 });
 
 export const adminUsersQuery = () => {
     return useQuery({
         queryKey: ['users'],
-        queryFn: () => getRequest("users").then((data) => data as user[]),
+        queryFn: () => getRequest("users").then((data) => (data as user[]).sort((a, b) => a.username.localeCompare(b.username))),
         retry: retryLogic,
     });
 }
 
 export const boardAccessQuery = (boardId?: string) => useQuery<boardAccess[], Error>({
     queryKey: ['boards', boardId, 'access'],
-    queryFn: () => getRequest(`boards/${boardId}/access`),
+    queryFn: () => getRequest(`boards/${boardId}/access`).then((data) => (data as boardAccess[]).sort((a, b) => a.username.localeCompare(b.username))),
     enabled: boardId? true : false,
     staleTime: 5 * 60 * 1000
 });

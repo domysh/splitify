@@ -1,4 +1,3 @@
-import mongoose, { Schema } from "mongoose";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -19,24 +18,3 @@ export const JWT_ALGORITHM = "HS256";
 export const RP_ID = process.env.RP_ID || "localhost";
 export const RP_ORIGIN = process.env.RP_ORIGIN || (DEBUG ? "http://localhost:5173" : `http://localhost:${process.env.PORT || 8080}`);
 export const RP_NAME = "Splitify";
-
-export const defaultOption: mongoose.SchemaOptions = {
-    toJSON: {
-        transform: (doc: any, obj: any) => {
-            delete obj.__v;
-            if (doc._id) {
-                obj.id = doc._id.toString();
-                delete obj._id;
-            }
-            return obj;
-        },
-    },
-};
-export const setAggregateDefaultOperations = (s: Schema) => {
-    s.pre("aggregate", function (this: mongoose.Aggregate<any>) {
-        this.pipeline().push(
-            { $addFields: { id: { $toString: "$_id" } } },
-            { $project: { _id: 0, __v: 0 } },
-        );
-    });
-};

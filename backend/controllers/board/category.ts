@@ -1,11 +1,7 @@
 import { Response } from 'express';
-import Category from '../../models/Category';
+import { prisma } from '../../utils/prisma';
 import { emitBoardUpdate } from '../../utils/socket';
-import { ObjectId } from 'mongodb';
 import { AddCategory, AuthRequest, BoardPermission } from '../../models/types';
-import Product from '../../models/Product';
-import Member from '../../models/Member';
-import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
 
 export const getBoardCategories = async (req: AuthRequest, res: Response) => {
@@ -17,15 +13,16 @@ export const getBoardCategories = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const categories = await Category.find({ boardId: new ObjectId(id) });
+    const categories = await prisma.category.findMany({
+      where: { boardId: id },
+      orderBy: { order: 'asc' }
+    });
     
     const sortedCategories = categories.map((cat, index) => ({
-      id: cat._id.toString(),
+      id: cat.id,
       name: cat.name,
-      order: cat.order !== undefined ? cat.order : index
-    })).sort((a, b) => 
-      (a.order || 0) - (b.order || 0)
-    )
+      order: cat.order !== null ? cat.order : index
+    }));
 
     res.json(sortedCategories);
   } catch (err) {
@@ -43,16 +40,19 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
     if (!board || !perm) {
       return res.status(404).json({ message: 'Board not found' });
     }    
-    const categoriesCount = await Category.countDocuments({ boardId: new ObjectId(id) });
-    const newCategory = await Category.create({
-      _id: generateRandomObjectId(),
-      boardId: new ObjectId(id),
-      name: categoryData.name,
-      order: categoryData.order !== undefined ? categoryData.order : categoriesCount
+    
+    const categoriesCount = await prisma.category.count({ where: { boardId: id } });
+    
+    const newCategory = await prisma.category.create({
+      data: {
+        boardId: id,
+        name: categoryData.name,
+        order: categoryData.order !== undefined ? categoryData.order : categoriesCount
+      }
     });
 
     emitBoardUpdate(id, ['categories']);
-    res.status(201).json({ id: newCategory._id.toString() });
+    res.status(201).json({ id: newCategory.id });
   } catch (err) {
     res.status(400).json({ message: 'Failed to create category' });
   }
@@ -69,13 +69,12 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const updatedCategory = await Category.findOneAndUpdate(
-      { _id: new ObjectId(category_id), boardId: new ObjectId(id) },
-      { $set: categoryData },
-      { new: true }
-    );
+    const updatedCategory = await prisma.category.updateMany({
+      where: { id: category_id, boardId: id },
+      data: { name: categoryData.name, order: categoryData.order }
+    });
 
-    if (!updatedCategory) {
+    if (updatedCategory.count === 0) {
       res.status(400).json({ message: 'Board or category not found' });
       return;
     }
@@ -98,25 +97,24 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const deletedCategory = await Category.findOneAndDelete({
-      _id: new ObjectId(category_id),
-      boardId: new ObjectId(id)
+    const deletedCategory = await prisma.category.deleteMany({
+      where: { id: category_id, boardId: id }
     });
     
-    if (!deletedCategory) {
+    if (deletedCategory.count === 0) {
       res.status(404).json({ message: 'Category not found' });
       return;
     }
 
-    await Product.updateMany(
-      { boardId: new ObjectId(id) },
-      { $pull: { categories: category_id } }
-    );
-
-    await Member.updateMany(
-      { boardId: new ObjectId(id) },
-      { $pull: { categories: category_id } }
-    );
+    // Prisma relations (CategoryToProduct and CategoryToMember) should be deleted automatically if we set onDelete: Cascade.
+    // Let's check schema.prisma later, but if we don't have cascade we must delete them manually.
+    await prisma.categoryToProduct.deleteMany({
+      where: { categoryId: category_id }
+    });
+    
+    await prisma.categoryToMember.deleteMany({
+      where: { categoryId: category_id }
+    });
     
     emitBoardUpdate(id, ['categories']);
     res.json({ id: category_id });

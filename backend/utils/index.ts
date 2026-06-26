@@ -1,23 +1,13 @@
-import Board from "../models/Board";
-import BoardAccess from "../models/BoardAccess";
-import { ObjectId } from "mongodb";
-import { Board as BoardType, BoardPermission, Role } from "../models/types";
-import { Document } from "mongoose";
-import User from "../models/User";
+import { BoardPermission, Role } from "../models/types";
+import { prisma } from './prisma';
 
-export const voidReturn = (func: Function) => {
-    return async (...args: any[]) => {await func(...args)}
-}
+export const voidReturn = (func: any): any => func;
 
 export const randomHex = (len: number) => {
     return Array.from({length: len},() => Math.floor(Math.random() * 16).toString(16)).join('')
 }
 
-export const generateRandomObjectId = (): ObjectId => {
-    return new ObjectId(randomHex(24));
-};
-
-type BoardAuthType = [Document & BoardType, BoardPermission]|null[]
+type BoardAuthType = [any, BoardPermission]|null[]
 
 export const permissionLevels: Record<BoardPermission, number> = {
     [BoardPermission.OWNER]: 3,
@@ -26,16 +16,16 @@ export const permissionLevels: Record<BoardPermission, number> = {
 };
 
 export const getAuthenticatedBoard = async (boardId: string, userId?: string, permRequired?:BoardPermission): Promise<BoardAuthType>  => {
-    const authentication = (await BoardAccess.findOne({ boardId, userId }).select('permission'))?.permission
-    const authBoard = await Board.findOne({ _id: new ObjectId(boardId) })
-    const user = userId?(await User.findById(userId)): null
+    const authentication = userId ? (await prisma.boardAccess.findFirst({ where: { boardId, userId } }))?.permission as BoardPermission : undefined;
+    const authBoard = await prisma.board.findUnique({ where: { id: boardId } });
+    const user = userId ? await prisma.user.findUnique({ where: { id: userId } }) : null;
     if (!authBoard) {
         return [null, null]
     }
     if (user && user.role === Role.ADMIN){
         return [authBoard, BoardPermission.OWNER]
     }
-    if (authBoard.creatorId.toString() === userId) {
+    if (authBoard.creatorId === userId) {
         if (permRequired && permissionLevels[BoardPermission.OWNER] < permissionLevels[permRequired]){
             return [null, null]
         }

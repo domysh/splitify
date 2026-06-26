@@ -1,13 +1,9 @@
 import { Response } from "express";
-import Product from "../../models/Product";
-import Member from "../../models/Member";
+import { prisma } from "../../utils/prisma";
 import { emitBoardUpdate } from "../../utils/socket";
-import { ObjectId } from "mongodb";
 import { AddProduct, AuthRequest, BoardPermission } from "../../models/types";
 import { createTransactionHelper } from "../transaction";
-import { generateRandomObjectId } from "../../utils";
 import { getAuthenticatedBoard } from "../../utils";
-import Transaction from "../../models/Transaction";
 
 export const getBoardProducts = async (req: AuthRequest, res: Response) => {
     try {
@@ -23,13 +19,16 @@ export const getBoardProducts = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ message: "Board not found" });
         }
 
-        const products = await Product.find({ boardId: new ObjectId(id) as any });
+        const products = await prisma.product.findMany({
+            where: { boardId: id },
+            include: { categories: true }
+        });
 
         const formattedProducts = products.map((product) => ({
-            id: product._id.toString(),
+            id: product.id,
             name: product.name,
             price: product.price,
-            categories: product.categories,
+            categories: product.categories.map(c => c.categoryId),
         }));
 
         res.json(formattedProducts);
@@ -54,23 +53,25 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
         }
 
         const memberId = productData.memberId || null;
-        delete productData.memberId;
 
-        const newProduct = await Product.create({
-            _id: generateRandomObjectId(),
-            boardId: new ObjectId(id) as any,
-            name: productData.name,
-            price: productData.price || 0,
-            categories:
-                productData.categories.map((a) => new ObjectId(a) as any) || [],
+        const newProduct = await prisma.product.create({
+            data: {
+                boardId: id,
+                name: productData.name,
+                price: productData.price || 0,
+                categories: {
+                    create: productData.categories?.map(categoryId => ({
+                        categoryId
+                    })) || []
+                }
+            }
         });
 
-        const productId = newProduct._id.toString();
+        const productId = newProduct.id;
 
         if (memberId) {
-            const member = await Member.findOne({
-                _id: new ObjectId(memberId),
-                boardId: new ObjectId(id) as any,
+            const member = await prisma.member.findFirst({
+                where: { id: memberId, boardId: id }
             });
 
             if (member) {
@@ -78,7 +79,7 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
                     id,
                     memberId,
                     null,
-                    productData.price,
+                    productData.price || 0,
                     `${member.name} ha pagato per ${productData.name}`,
                     productId,
                 );
@@ -110,9 +111,8 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ message: "Board not found" });
         }
 
-        const currentProduct = await Product.findOne({
-            _id: new ObjectId(product_id),
-            boardId: new ObjectId(id) as any,
+        const currentProduct = await prisma.product.findFirst({
+            where: { id: product_id, boardId: id }
         });
 
         if (!currentProduct) {
@@ -120,53 +120,69 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         }
 
         const memberId = req.body.memberId;
-        delete (productData as any).memberId;
 
         if (!updateOnlyFlag) {
-            const transactions = await Transaction.find({
-                productId: new ObjectId(product_id),
-                boardId: new ObjectId(id) as any,
+            const transactions = await prisma.transaction.findMany({
+                where: { productId: product_id, boardId: id }
             });
 
             if (transactions.length === 1) {
                 const transaction = transactions[0];
                 let priceChanged = productData.price !== undefined && productData.price !== currentProduct.price;
-                let payerChanged = memberId !== undefined && transaction.fromMemberId?.toString() !== memberId;
+                let payerChanged = memberId !== undefined && transaction.fromMemberId !== memberId;
                 
                 if (priceChanged || payerChanged) {
-                    const newPrice = priceChanged ? productData.price : transaction.amount;
+                    const newPrice = priceChanged ? (productData.price || 0) : transaction.amount;
                     const oldPrice = transaction.amount;
                     
                     const oldPayer = transaction.fromMemberId;
-                    const newPayer = payerChanged ? new ObjectId(memberId) : transaction.fromMemberId;
+                    const newPayer = payerChanged ? memberId : transaction.fromMemberId;
                     
                     if (oldPayer) {
-                        await Member.updateOne({ _id: oldPayer }, { $inc: { paid: -Number(oldPrice) } });
+                        await prisma.member.update({
+                            where: { id: oldPayer },
+                            data: { paid: { decrement: oldPrice } }
+                        });
                     }
                     if (newPayer) {
-                        await Member.updateOne({ _id: newPayer }, { $inc: { paid: Number(newPrice) } });
+                        await prisma.member.update({
+                            where: { id: newPayer },
+                            data: { paid: { increment: newPrice } }
+                        });
                     }
                     
-                    await Transaction.updateOne(
-                        { _id: transaction._id },
-                        { $set: { amount: newPrice, fromMemberId: newPayer } }
-                    );
+                    await prisma.transaction.update({
+                        where: { id: transaction.id },
+                        data: { amount: newPrice, fromMemberId: newPayer }
+                    });
                     
                     transactionUpdated = true;
                 }
             }
         }
 
-        const updatedProduct = await Product.findOneAndUpdate(
-            { _id: new ObjectId(product_id) as any, boardId: new ObjectId(id) as any },
-            { $set: productData },
-            { new: true },
-        );
+        await prisma.categoryToProduct.deleteMany({
+            where: { productId: product_id }
+        });
+
+        const updatedProduct = await prisma.product.update({
+            where: { id: product_id },
+            data: {
+                name: productData.name,
+                price: productData.price,
+                categories: {
+                    create: productData.categories?.map(categoryId => ({
+                        categoryId
+                    })) || []
+                }
+            }
+        });
 
         if (!updatedProduct) {
             res.status(400).json({ message: "Board or product not found" });
             return;
         }
+        
         if (transactionUpdated) {
             emitBoardUpdate(id, ["transactions", "members"]);
         } else {
@@ -174,6 +190,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
         }
         res.json({ id: product_id });
     } catch (err) {
+        console.error("Error updating product:", err);
         res.status(400).json({ message: "Failed to update product" });
     }
 };
@@ -195,35 +212,34 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
         }
 
         if (!deleteOnlyFlag) {
-            const transactions = await Transaction.find({
-                productId: new ObjectId(product_id),
-                boardId: new ObjectId(id) as any,
+            const transactions = await prisma.transaction.findMany({
+                where: { productId: product_id, boardId: id }
             });
 
             for (const transaction of transactions) {
                 if (transaction.fromMemberId) {
-                    await Member.findByIdAndUpdate(
-                        transaction.fromMemberId,
-                        { $inc: { paid: -Number(transaction.amount) } }
-                    );
+                    await prisma.member.update({
+                        where: { id: transaction.fromMemberId },
+                        data: { paid: { decrement: transaction.amount } }
+                    });
                 }
 
                 if (transaction.toMemberId) {
-                    await Member.findByIdAndUpdate(
-                        transaction.toMemberId,
-                        { $inc: { paid: Number(transaction.amount) } }
-                    );
+                    await prisma.member.update({
+                        where: { id: transaction.toMemberId },
+                        data: { paid: { increment: transaction.amount } }
+                    });
                 }
 
-                transaction.productId = null;
-                transaction.cancelled = true;
-                await transaction.save();
+                await prisma.transaction.update({
+                    where: { id: transaction.id },
+                    data: { productId: null, cancelled: true }
+                });
             }
         }
 
-        await Product.findOneAndDelete({
-            _id: new ObjectId(product_id),
-            boardId: new ObjectId(id) as any,
+        await prisma.product.delete({
+            where: { id: product_id }
         });
 
         if (!deleteOnlyFlag) {

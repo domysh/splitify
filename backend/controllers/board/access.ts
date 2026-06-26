@@ -1,10 +1,7 @@
 import { Response } from 'express';
-import { ObjectId } from 'mongodb';
 import { AddBoardAccess, AuthRequest, BoardPermission, Role, TransferBoardOwnership } from '../../models/types';
-import BoardAccess from '../../models/BoardAccess';
-import User from '../../models/User';
+import { prisma } from '../../utils/prisma';
 import { emitBoardUpdate, emitUserUpdate } from '../../utils/socket';
-import { generateRandomObjectId } from '../../utils';
 import { getAuthenticatedBoard } from '../../utils';
 
 export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
@@ -15,23 +12,16 @@ export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const userDetails = await BoardAccess.aggregate([
-      { $match: { boardId: new ObjectId(id) } },
-      {
-      $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user'
-      }
-      },
-      {
-        $project: {
-          userId: 1,permission: 1,
-          username: { $arrayElemAt: ['$user.username', 0] },
-        }
-      }
-    ]);
+    const accesses = await prisma.boardAccess.findMany({
+      where: { boardId: id },
+      include: { user: { select: { username: true } } }
+    });
+
+    const userDetails = accesses.map(acc => ({
+      userId: acc.userId,
+      permission: acc.permission,
+      username: acc.user.username
+    }));
 
     res.json(userDetails);
   } catch (err) {
@@ -50,34 +40,34 @@ export const addBoardAccess = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const targetUser = await User.findById(accessData.userId);
+    const targetUser = await prisma.user.findUnique({ where: { id: accessData.userId } });
     if (!targetUser) {
       return res.status(404).json({ message: 'Target user not found' });
     }
 
-    if (board.creatorId.toString() === accessData.userId) {
+    if (board.creatorId === accessData.userId) {
       return res.status(400).json({ message: 'Cannot add access for the board owner' });
     }
 
-    const existingAccess = await BoardAccess.findOne({
-      userId: accessData.userId,
-      boardId: new ObjectId(id)
+    const existingAccess = await prisma.boardAccess.findFirst({
+      where: { userId: accessData.userId, boardId: id }
     });
+    
     if (existingAccess) {
       return res.status(400).json({ message: 'User already has access to this board' });
     }
 
-    const access = new BoardAccess({
-      _id: generateRandomObjectId(),
-      userId: new ObjectId(accessData.userId),
-      boardId: new ObjectId(id),
-      permission: accessData.permission
+    const access = await prisma.boardAccess.create({
+      data: {
+        userId: accessData.userId,
+        boardId: id,
+        permission: accessData.permission
+      }
     });
 
-    await access.save();
     emitUserUpdate(accessData.userId, ['boards', `boards/${id}`]);
     emitBoardUpdate(id);
-    res.status(201).json({ id: access._id.toString() });
+    res.status(201).json({ id: access.id });
   } catch (err) {
     console.error('Error adding board access:', err);
     res.status(400).json({ message: 'Failed to add board access' });
@@ -92,13 +82,12 @@ export const removeBoardAccess = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    if (targetUserId === req.user?.id && req.user.role != Role.ADMIN) {
+    if (targetUserId === req.user?.id && req.user?.role !== Role.ADMIN) {
       return res.status(400).json({ message: 'Cannot remove your own access' });
     }
 
-    await BoardAccess.findOneAndDelete({
-      userId: targetUserId,
-      boardId: new ObjectId(id)
+    await prisma.boardAccess.deleteMany({
+      where: { userId: targetUserId, boardId: id }
     });
 
     emitBoardUpdate(id);
@@ -121,24 +110,37 @@ export const transferBoardOwnership = async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const newOwner = await User.findById(transferData.newOwnerId);
+    const newOwner = await prisma.user.findUnique({ where: { id: transferData.newOwnerId } });
     if (!newOwner) {
       return res.status(404).json({ message: 'New owner not found' });
     }
 
-    await BoardAccess.findOneAndDelete({
-      userId: transferData.newOwnerId,
-      boardId: new ObjectId(id)
+    // Remove any access record for the new owner
+    await prisma.boardAccess.deleteMany({
+      where: { userId: transferData.newOwnerId, boardId: id }
     });
 
-    await BoardAccess.findOneAndUpdate(
-      { userId:board?.creatorId, boardId: new ObjectId(id) },
-      { permission: BoardPermission.EDITOR },
-      { upsert: true }
-    );
+    // Make old owner an editor
+    const existingOldOwnerAccess = await prisma.boardAccess.findFirst({
+      where: { userId: board.creatorId, boardId: id }
+    });
 
-    board.creatorId = new ObjectId(transferData.newOwnerId);    
-    await board.save();
+    if (existingOldOwnerAccess) {
+      await prisma.boardAccess.update({
+        where: { id: existingOldOwnerAccess.id },
+        data: { permission: BoardPermission.EDITOR }
+      });
+    } else {
+      await prisma.boardAccess.create({
+        data: { userId: board.creatorId, boardId: id, permission: BoardPermission.EDITOR }
+      });
+    }
+
+    await prisma.board.update({
+      where: { id },
+      data: { creatorId: transferData.newOwnerId }
+    });
+
     emitBoardUpdate(id);
     
     res.json({ success: true });
@@ -159,18 +161,21 @@ export const updateBoardAccess = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
     
-    const updatedAccess = await BoardAccess.findOneAndUpdate(
-      { boardId: new ObjectId(id), userId },
-      { permission },
-      { new: true }
-    );
-    
-    if (!updatedAccess) {
+    const accesses = await prisma.boardAccess.findMany({
+      where: { boardId: id, userId }
+    });
+
+    if (accesses.length === 0) {
       return res.status(404).json({ message: 'Access entry not found' });
     }
 
+    const updatedAccess = await prisma.boardAccess.update({
+      where: { id: accesses[0].id },
+      data: { permission }
+    });
+
     emitBoardUpdate(id);
-    return res.json({ id: updatedAccess._id.toString() });
+    return res.json({ id: updatedAccess.id });
   } catch (err) {
     console.error('Error updating board access:', err);
     return res.status(400).json({ message: 'Failed to update board access' });

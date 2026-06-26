@@ -1,8 +1,7 @@
 import { Request } from 'express';
-import { ObjectId } from 'mongodb';
 import { RegistrationMode } from '../controllers/auth';
 import { tags } from "typia";
-import { Document } from 'mongoose';
+import { User as PrismaUser } from '@prisma/client';
 
 export enum Role {
   ADMIN = "admin",
@@ -21,49 +20,43 @@ export enum UsableBoardPermission {
 }
 
 type UsernameType = string & tags.Pattern<"^[a-zA-Z0-9\\-\\_\\.]{5,30}$">;
-type ObjectIdType = string & tags.Pattern<"^[a-fA-F0-9]{24}$">;
 type LimitString = string & tags.MaxLength<300>
 
 export interface Category {
-  _id?: ObjectId;
-  id?: ObjectIdType;
-  boardId: LimitString | ObjectId;
+  id?: string;
+  boardId: string;
   name: LimitString;
   order: number;
 }
 
 export interface Product {
-  _id?: ObjectId;
-  id?: ObjectIdType;
-  boardId: ObjectIdType | ObjectId;
+  id?: string;
+  boardId: string;
   name: LimitString;
   price: number;
-  categories: ObjectIdType[];
+  categories: string[];
 }
 
 export interface Member {
-  _id?: ObjectId;
-  id?: ObjectIdType;
-  boardId: ObjectIdType | ObjectId;
+  id?: string;
+  boardId: string;
   name: LimitString;
   paid: number;
-  categories: ObjectIdType[];
+  categories: string[];
 }
 
 export interface BoardAccess {
-  _id?: ObjectId;
-  id?: ObjectIdType;
-  userId: ObjectIdType | ObjectId;
-  boardId: ObjectIdType | ObjectId;
+  id?: string;
+  userId: string;
+  boardId: string;
   permission: BoardPermission;
 }
 
 export interface Board {
-  _id?: ObjectId;
-  id?: ObjectIdType;
+  id?: string;
   name: LimitString;
   isPublic: boolean;
-  creatorId: ObjectIdType | ObjectId;
+  creatorId: string;
 }
 
 export interface UserSession {
@@ -80,14 +73,13 @@ export interface UserSession {
 
 
 export interface User {
-  _id?: ObjectId;
-  id?: ObjectIdType;
+  id?: string;
   username: UsernameType;
   password: LimitString;
   role: Role;
   sessions: UserSession[];
   passkeys?: PasskeyCredential[];
-  pinnedBoards?: ObjectIdType[] | ObjectId[];
+  pinnedBoards?: string[];
   boardUsage?: Record<string, number>;
   passkeyPromptDismissed?: boolean;
 }
@@ -104,13 +96,13 @@ export interface PasskeyCredential {
 export type AuthenticatorTransportFuture = "ble" | "internal" | "nfc" | "usb" | "cable" | "hybrid" | "smart-card";
 
 export interface Env {
-  _id?: ObjectId;
+  id?: string;
   key: LimitString;
   value: LimitString;
 }
 
 export interface IdResponse {
-  id: ObjectIdType;
+  id: string;
 }
 
 export interface AddBoardForm {
@@ -147,39 +139,38 @@ export interface AddCategory {
 export interface AddProduct {
   name: LimitString;
   price: number;
-  categories: ObjectIdType[];
-  memberId?: ObjectIdType | null;
+  categories: string[];
+  memberId?: string | null;
 }
 
 export interface AddMember {
   name: LimitString;
-  categories: ObjectIdType[];
+  categories: string[];
   paid: number;
 }
 
 export interface Transaction {
-  _id?: ObjectId;
-  id?: ObjectIdType;
-  boardId: ObjectIdType;
-  fromMemberId: ObjectIdType | ObjectId | null;
-  toMemberId: ObjectIdType | ObjectId | null;
+  id?: string;
+  boardId: string;
+  fromMemberId: string | null;
+  toMemberId: string | null;
   amount: number;
   description: LimitString;
-  productId?: ObjectIdType | ObjectId | null;
+  productId?: string | null;
   timestamp: Date;
   cancelled?: boolean;
 }
 
 export interface AddTransaction {
-  fromMemberId?: ObjectIdType | null;
-  toMemberId?: ObjectIdType | null;
+  fromMemberId?: string | null;
+  toMemberId?: string | null;
   amount: number;
   description: LimitString;
-  productId?: ObjectIdType | null;
+  productId?: string | null;
 }
 
 export interface AddBoardAccess {
-  userId: ObjectIdType;
+  userId: string;
   permission: UsableBoardPermission;
 }
 
@@ -188,13 +179,13 @@ export interface UpdateBoardAccess {
 }
 
 export interface TransferBoardOwnership {
-  newOwnerId: ObjectIdType;
+  newOwnerId: string;
 }
 
 
 
 export interface AuthRequest extends Request {
-  user?: User & Document,
+  user?: any, // Full prisma user including relations
   token?: JwtPayload;
 }
 
