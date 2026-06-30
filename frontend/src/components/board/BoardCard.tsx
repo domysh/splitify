@@ -119,12 +119,12 @@ export const BoardCard = ({ board, isPinned, onPinToggle }: BoardCardProps) => {
           }}
         >
           <Avatar size="xs" radius="xl" color="blue">
-            {getInitials(board.creator.username)}
+            {getInitials(board.creator.email)}
           </Avatar>
           <Text size="sm" c="dimmed">
             Creata da{" "}
             <Text span fw={500} c="blue.3">
-              {board.creator.username}
+              {board.creator.email}
             </Text>
           </Text>
         </Box>

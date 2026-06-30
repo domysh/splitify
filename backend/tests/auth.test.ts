@@ -1,60 +1,55 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { getAgent, clearDatabase, createTestUser } from "./setup";
+import { getAgent, clearDatabase, createTestUser, loginTestUser } from "./setup";
+import { prisma } from "../utils/prisma";
 
 describe("Auth API", () => {
     const agent = getAgent();
 
     beforeAll(async () => {
         await clearDatabase();
-        await createTestUser("testuser", "password123");
+        await createTestUser("testuser@test.com", undefined);
     });
 
     afterAll(async () => {
         await clearDatabase();
     });
 
-    it("should fail to login with wrong credentials", async () => {
+    it("should initiate login and create OTP", async () => {
         const res = await agent.post("/api/login").send({
-            username: "testuser",
-            password: "wrongpassword",
+            email: "testuser@test.com",
         });
-        expect(res.status).toBe(406);
-        expect(res.body.message).toBe("Wrong password!");
+        expect(res.status).toBe(200);
+        expect(res.body.requiresOtp).toBe(true);
+
+        const otpRec = await prisma.otpCode.findUnique({ where: { email: "testuser@test.com" } });
+        expect(otpRec).toBeDefined();
+        expect(otpRec?.code.length).toBe(6);
     });
 
-    it("should login successfully with correct credentials", async () => {
-        const res = await agent.post("/api/login").send({
-            username: "testuser",
-            password: "password123",
+    it("should fail to verify with wrong OTP", async () => {
+        const res = await agent.post("/api/verify-otp").send({
+            email: "testuser@test.com",
+            code: "000000",
+        });
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("Codice errato");
+    });
+
+    it("should verify successfully with correct OTP", async () => {
+        const otpRec = await prisma.otpCode.findUnique({ where: { email: "testuser@test.com" } });
+        const res = await agent.post("/api/verify-otp").send({
+            email: "testuser@test.com",
+            code: otpRec?.code,
         });
         expect(res.status).toBe(200);
         expect(res.body.access_token).toBeDefined();
     });
 
     it("should get current user info (me) when authenticated", async () => {
-        const loginRes = await agent.post("/api/login").send({
-            username: "testuser",
-            password: "password123",
-        });
-        const token = loginRes.body.access_token;
+        const token = await loginTestUser(agent as any, "testuser@test.com");
 
         const res = await agent.get("/api/me").set("Authorization", `Bearer ${token}`);
         expect(res.status).toBe(200);
-        expect(res.body.username).toBe("testuser");
-    });
-
-    it("should register a new user successfully", async () => {
-        const res = await agent.post("/api/register").send({
-            username: "newuser",
-            password: "newpassword123",
-        });
-        // By default REGISTRATION_MODE is PRIVATE. It will return 403 or 201 depending on the env.
-        // The default fallback in the code is PRIVATE if no DB env is set. Let's see what happens.
-        if (res.status === 403) {
-            expect(res.body.message).toBe("Registration is closed");
-        } else {
-            expect(res.status).toBe(201);
-            expect(res.body.access_token).toBeDefined();
-        }
+        expect(res.body.email).toBe("testuser@test.com");
     });
 });

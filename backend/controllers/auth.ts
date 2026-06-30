@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../utils/prisma';
-import { createAccessToken, hashPassword, verifyPassword } from '../utils/auth';
-import { AuthRequest, LoginRequest, RegistrationRequest, Role, SetRegistrationMode } from '../models/types';
+import { createAccessToken, verifyPassword } from '../utils/auth';
+import { AuthRequest, LoginRequest, Role, SetRegistrationMode, VerifyOtpRequest } from '../models/types';
 import { broadCastUpdate, emitAdminUpdate } from '../utils/socket';
 import crypto from 'crypto';
 import { randomSleep } from '../utils';
@@ -14,78 +14,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoUint8Array } from '@simplewebauthn/server/helpers';
 import { RP_ID, RP_NAME, RP_ORIGIN } from '../config';
-
-export const login = async (req: AuthRequest, res: Response) => {
-  const { username, password, keepLogin }: LoginRequest = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Cannot insert an empty value!' });
-  }
-
-  await randomSleep();
-  const user = await prisma.user.findFirst({ where: { username: username.toLowerCase() } });
-  if (!user) {
-    return res.status(406).json({ message: 'User not found!' });
-  }
-
-  const validPassword = await verifyPassword(password, user.password);
-  if (!validPassword) {
-    return res.status(406).json({ message: 'Wrong password!' });
-  }
-
-  const tokenDuration = keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
-
-  const userAgent = req.headers['user-agent'];
-  const ipAddress = req.ip || req.socket.remoteAddress;
-
-  const token = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
-
-  return res.json({
-    access_token: token,
-    token_type: 'bearer',
-    expires_in: tokenDuration
-  });
-};
-
-export const refreshToken = async (req: AuthRequest, res: Response) => {
-  try {
-    const token = req.token;
-    const user = req.user;
-
-    if (!token || !user) {
-      return res.status(400).json({ message: 'Token is required' });
-    }
-
-    if (!canRefreshToken(token)) {
-      return res.status(400).json({
-        message: 'Token cannot be refreshed at this time',
-      });
-    }
-
-    // `user.sessions` comes from `checkLogin` which fetches sessions from Prisma
-    const session = user.sessions?.find((s: any) => s.sessionId === token.sid);
-
-    if (!session) {
-      return res.status(400).json({ message: 'Session not found' });
-    }
-
-    const originalDuration = token.exp - token.iat;
-
-    const userAgent = req.headers['user-agent'];
-    const ipAddress = req.ip || req.socket.remoteAddress;
-
-    const newToken = await createAccessToken(token.sub, originalDuration, token.sid, userAgent, ipAddress);
-
-    return res.json({
-      access_token: newToken,
-      token_type: 'bearer',
-      expires_in: originalDuration
-    });
-  } catch (error) {
-    console.error('Error refreshing token:', error);
-    return res.status(500).json({ message: 'Failed to refresh token' });
-  }
-};
+import { sendMail } from '../utils/mailer';
 
 export enum RegistrationMode {
   PUBLIC = 'public',
@@ -106,69 +35,221 @@ export const getRegistrationToken = async (): Promise<string> => {
   if (secretDoc) {
     return secretDoc.value;
   }
-
   const newSecret = crypto.randomBytes(32).toString('hex');
-
-  await prisma.env.create({
-    data: {
-      key: 'REGISTRATION_TOKEN',
-      value: newSecret
-    }
-  });
-
+  await prisma.env.create({ data: { key: 'REGISTRATION_TOKEN', value: newSecret } });
   return newSecret;
 };
 
-export const register = async (req: AuthRequest, res: Response) => {
-  try {
-    const { username, password, token, keepLogin }: RegistrationRequest = req.body;
-    const lowercaseUsername = (username as string).toLowerCase();
-    const registrationMode = await getRegistrationMode();
+// Generate 6 digit OTP
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
-    if (RegistrationMode.PRIVATE === registrationMode) {
-      return res.status(403).json({ message: 'Registration is closed' });
-    }
-    if (RegistrationMode.TOKEN === registrationMode) {
-      const tokenDoc = await getRegistrationToken();
-      if (tokenDoc !== token) {
-        return res.status(403).json({ message: 'Invalid registration token' });
+async function sendOtpEmail(email: string) {
+  const code = generateOtp();
+  const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes validity
+  const nextResendAt = new Date(Date.now() + 60 * 1000); // 1 minute cooldown
+
+  await prisma.otpCode.upsert({
+    where: { email },
+    update: { code, expiresAt, nextResendAt, attempts: 0 },
+    create: { email, code, expiresAt, nextResendAt, attempts: 0 }
+  });
+
+  const text = `Il tuo codice di accesso per Splitify è: ${code}\nQuesto codice scadrà in 3 minuti.`;
+  
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #eaebf0; }
+    .header { background: linear-gradient(135deg, #7a84ff, #9ba3ff); padding: 32px 24px; text-align: center; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    .content { padding: 40px 32px; text-align: center; }
+    .text { font-size: 16px; color: #4b5563; line-height: 1.6; margin-bottom: 24px; }
+    .otp-box { background: #f3f4ff; border: 1px solid #dbe0ff; border-radius: 12px; padding: 24px; margin: 32px 0; }
+    .otp-code { font-size: 38px; font-weight: 700; color: #5c67ff; letter-spacing: 10px; margin: 0; font-family: monospace; }
+    .footer { padding: 24px; text-align: center; background: #fafafa; border-top: 1px solid #f0f0f0; }
+    .footer p { font-size: 13px; color: #9ca3af; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Splitify</h1>
+    </div>
+    <div class="content">
+      <p class="text" style="font-weight: 600; color: #111827;">Codice di Sicurezza</p>
+      <p class="text">Abbiamo ricevuto una richiesta di accesso o registrazione per Splitify. Usa questo codice monouso per completare l'operazione:</p>
+      <div class="otp-box">
+        <p class="otp-code">${code}</p>
+      </div>
+      <p class="text" style="font-size: 14px; color: #6b7280;">Questo codice scade tra <strong>3 minuti</strong>. Se non hai richiesto tu l'accesso, puoi ignorare in sicurezza questa email.</p>
+    </div>
+    <div class="footer">
+      <p>Splitify 💰 — Gestisci le tue spese di gruppo in modo semplice.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await sendMail(email, 'Codice di Accesso Splitify', text, html);
+}
+
+export const login = async (req: AuthRequest, res: Response) => {
+  const { email } = req.body as LoginRequest;
+
+
+  if (email) {
+    const emailLower = email.toLowerCase();
+    
+    // Check if user doesn't exist and registration is closed
+    const user = await prisma.user.findFirst({ where: { email: emailLower } });
+    if (!user) {
+      const mode = await getRegistrationMode();
+      if (mode === RegistrationMode.PRIVATE) {
+        return res.status(403).json({ message: 'La registrazione è chiusa' });
       }
     }
 
-    if (lowercaseUsername === 'admin') {
-      return res.status(400).json({ message: "'admin' is reserved" });
+    // Check resend cooldown
+    const existingOtp = await prisma.otpCode.findUnique({ where: { email: emailLower } });
+    if (existingOtp && existingOtp.nextResendAt > new Date()) {
+      return res.status(429).json({ message: 'Attendi prima di richiedere un nuovo codice' });
     }
 
-    const existingUser = await prisma.user.findFirst({ where: { username: lowercaseUsername } });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username already exists' });
+    try {
+      await sendOtpEmail(emailLower);
+      return res.json({ requiresOtp: true });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ message: 'Errore durante l\'invio dell\'email' });
+    }
+  }
+
+  return res.status(400).json({ message: 'Inserisci un\'email valida' });
+};
+
+export const resendOtp = async (req: AuthRequest, res: Response) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email richiesta' });
+  
+  const emailLower = email.toLowerCase();
+  const existingOtp = await prisma.otpCode.findUnique({ where: { email: emailLower } });
+  if (existingOtp && existingOtp.nextResendAt > new Date()) {
+    return res.status(429).json({ message: 'Attendi prima di richiedere un nuovo codice' });
+  }
+
+  try {
+    await sendOtpEmail(emailLower);
+    return res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Errore durante l\'invio dell\'email' });
+  }
+};
+
+export const verifyOtp = async (req: AuthRequest, res: Response) => {
+  const { email, code, keepLogin, token } = req.body as VerifyOtpRequest;
+  if (!email || !code) return res.status(400).json({ message: 'Email e codice richiesti' });
+
+  const emailLower = email.toLowerCase();
+  const otpCode = await prisma.otpCode.findUnique({ where: { email: emailLower } });
+
+  if (!otpCode) {
+    return res.status(400).json({ message: 'Nessun codice richiesto per questa email' });
+  }
+
+  if (otpCode.attempts >= 5) {
+    return res.status(429).json({ message: 'Troppi tentativi errati. Richiedi un nuovo codice.' });
+  }
+
+  if (otpCode.expiresAt < new Date()) {
+    return res.status(400).json({ message: 'Codice scaduto. Richiedine uno nuovo.' });
+  }
+
+  if (otpCode.code !== code) {
+    await prisma.otpCode.update({ where: { email: emailLower }, data: { attempts: { increment: 1 } } });
+    return res.status(400).json({ message: 'Codice errato' });
+  }
+
+  await prisma.otpCode.delete({ where: { email: emailLower } });
+
+  let user = await prisma.user.findFirst({ where: { email: emailLower } });
+
+  // Registration flow if user doesn't exist
+  if (!user) {
+    const mode = await getRegistrationMode();
+    if (mode === RegistrationMode.PRIVATE) {
+      return res.status(403).json({ message: 'La registrazione è chiusa' });
+    }
+    if (mode === RegistrationMode.TOKEN) {
+      const regToken = await getRegistrationToken();
+      if (regToken !== token) {
+        return res.status(403).json({ message: 'Token di registrazione non valido' });
+      }
     }
 
-    const hashedPassword = await hashPassword(password);
-    const user = await prisma.user.create({
+    user = await prisma.user.create({
       data: {
-        username: lowercaseUsername,
-        password: hashedPassword,
+        email: emailLower,
         role: Role.GUEST
       }
     });
-
     emitAdminUpdate(['users']);
+  }
 
+  const tokenDuration = keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
+  const userAgent = req.headers['user-agent'];
+  const ipAddress = req.ip || req.socket.remoteAddress;
+
+  const loginToken = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
+
+  return res.json({
+    access_token: loginToken,
+    token_type: 'bearer',
+    expires_in: tokenDuration
+  });
+};
+
+
+export const refreshToken = async (req: AuthRequest, res: Response) => {
+  try {
+    const token = req.token;
+    const user = req.user;
+
+    if (!token || !user) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    if (!canRefreshToken(token)) {
+      return res.status(400).json({
+        message: 'Token cannot be refreshed at this time',
+      });
+    }
+
+    const session = user.sessions?.find((s: any) => s.sessionId === token.sid);
+
+    if (!session) {
+      return res.status(400).json({ message: 'Session not found' });
+    }
+
+    const originalDuration = token.exp - token.iat;
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.socket.remoteAddress;
 
-    const tokenDuration = keepLogin ? TOKEN_DURATION.LONG : TOKEN_DURATION.SHORT;
-    const newLoginToken = await createAccessToken(user.id, tokenDuration, undefined, userAgent, ipAddress);
+    const newToken = await createAccessToken(token.sub, originalDuration, token.sid, userAgent, ipAddress);
 
-    return res.status(201).json({
-      id: user.id,
-      access_token: newLoginToken,
+    return res.json({
+      access_token: newToken,
       token_type: 'bearer',
-      expires_in: tokenDuration
+      expires_in: originalDuration
     });
-  } catch (err) {
-    return res.status(400).json({ message: 'Failed to create user' });
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    return res.status(500).json({ message: 'Failed to refresh token' });
   }
 };
 
@@ -189,27 +270,17 @@ export const setRegistrationInfo = async (req: AuthRequest, res: Response) => {
 
   const modeDoc = await prisma.env.findFirst({ where: { key: 'REGISTRATION_MODE' } });
   if (modeDoc) {
-    await prisma.env.update({
-      where: { id: modeDoc.id },
-      data: { value: mode }
-    });
+    await prisma.env.update({ where: { id: modeDoc.id }, data: { value: mode } });
   } else {
-    await prisma.env.create({
-      data: { key: 'REGISTRATION_MODE', value: mode }
-    });
+    await prisma.env.create({ data: { key: 'REGISTRATION_MODE', value: mode } });
   }
 
   if (mode === RegistrationMode.TOKEN && token) {
     const tokenDoc = await prisma.env.findFirst({ where: { key: 'REGISTRATION_TOKEN' } });
     if (tokenDoc) {
-      await prisma.env.update({
-        where: { id: tokenDoc.id },
-        data: { value: token }
-      });
+      await prisma.env.update({ where: { id: tokenDoc.id }, data: { value: token } });
     } else {
-      await prisma.env.create({
-        data: { key: 'REGISTRATION_TOKEN', value: token }
-      });
+      await prisma.env.create({ data: { key: 'REGISTRATION_TOKEN', value: token } });
     }
   }
 
@@ -229,7 +300,6 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  // Reload user to get passkeys and sessions
   const fullUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: { sessions: true, passkeys: true }
@@ -241,7 +311,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 
   res.json({
     id: fullUser.id,
-    username: fullUser.username,
+    email: fullUser.email,
     role: fullUser.role,
     sessions: fullUser.sessions,
     pinnedBoards: fullUser.pinnedBoards || [],
@@ -257,28 +327,19 @@ export const passkeyRegisterStart = async (req: AuthRequest, res: Response) => {
     where: { id: req.user?.id || '' },
     include: { passkeys: true }
   });
-  const { password } = req.body;
-
+  
   if (!user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  if (!password) {
-    return res.status(400).json({ message: 'Password richiesta' });
-  }
-
-  const isMatch = await verifyPassword(password, user.password);
-  if (!isMatch) {
-    return res.status(400).json({ message: 'Password errata' });
-  }
-
+  
   const userPasskeys = user.passkeys || [];
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID: RP_ID,
     userID: isoUint8Array.fromUTF8String(user.id),
-    userName: user.username,
+    userName: user.email,
     excludeCredentials: userPasskeys.map((passkey) => ({
       id: passkey.id,
       transports: passkey.transports as any,
@@ -342,9 +403,9 @@ export const passkeyRegisterVerify = async (req: AuthRequest, res: Response) => 
 export const passkeyLoginStart = async (req: AuthRequest, res: Response) => {
   let userPasskeys: any[] = [];
 
-  if (req.body.username) {
+  if (req.body.email) {
     const user = await prisma.user.findFirst({
-      where: { username: req.body.username.toLowerCase() },
+      where: { email: req.body.email.toLowerCase() },
       include: { passkeys: true }
     });
     if (user && user.passkeys) {
@@ -356,7 +417,7 @@ export const passkeyLoginStart = async (req: AuthRequest, res: Response) => {
     rpID: RP_ID,
     allowCredentials: userPasskeys.map((passkey) => ({
       id: passkey.id,
-      transports: passkey.transports,
+      transports: passkey.transports as any,
     })),
     userVerification: 'preferred',
   });
@@ -432,22 +493,14 @@ export const deleteSession = async (req: AuthRequest, res: Response) => {
   const user = req.user;
   const sessionId = req.params.sessionId;
 
-  if (!user) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  if (sessionId === req.token?.sid) {
-    return res.status(400).json({ message: 'Non puoi disconnettere la sessione attuale' });
-  }
+  if (!user) return res.status(401).json({ message: 'Unauthorized' });
+  if (sessionId === req.token?.sid) return res.status(400).json({ message: 'Non puoi disconnettere la sessione attuale' });
 
   const deleted = await prisma.userSession.deleteMany({
     where: { userId: user.id, sessionId: sessionId }
   });
 
-  if (deleted.count === 0) {
-    return res.status(404).json({ message: 'Session not found' });
-  }
-
+  if (deleted.count === 0) return res.status(404).json({ message: 'Session not found' });
   return res.json({ message: 'Session deleted successfully' });
 };
 
@@ -461,10 +514,7 @@ export const deletePasskey = async (req: AuthRequest, res: Response) => {
     where: { userId: user.id, id: passkeyId }
   });
 
-  if (deleted.count === 0) {
-    return res.status(404).json({ message: 'Passkey not found' });
-  }
-
+  if (deleted.count === 0) return res.status(404).json({ message: 'Passkey not found' });
   return res.json({ message: 'Passkey deleted successfully' });
 };
 
@@ -480,10 +530,7 @@ export const renamePasskey = async (req: AuthRequest, res: Response) => {
     data: { name }
   });
 
-  if (updated.count === 0) {
-    return res.status(404).json({ message: 'Passkey not found' });
-  }
-
+  if (updated.count === 0) return res.status(404).json({ message: 'Passkey not found' });
   return res.json({ message: 'Passkey renamed successfully' });
 };
 
@@ -491,9 +538,7 @@ export const deleteCurrentSession = async (req: AuthRequest, res: Response) => {
   const user = req.user;
   const sessionId = req.token?.sid;
 
-  if (!user || !sessionId) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
+  if (!user || !sessionId) return res.status(401).json({ message: 'Unauthorized' });
 
   await prisma.userSession.deleteMany({
     where: { userId: user.id, sessionId: sessionId }

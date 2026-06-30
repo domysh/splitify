@@ -5,31 +5,20 @@ import {
     createUser,
     updateUser,
     deleteUser,
-    searchUsers,
-    updateUsername,
-    changeUserPassword,
-    changePasswordWithPasskey,
     dismissPasskeyPrompt
 } from "../controllers/user";
 import { hasRole } from "../middleware/auth";
 import {
     validateAddUser,
-    validateChangePassword,
     validateUpdateUser,
-    validateUpdateUsername,
 } from "../middleware/validation";
 import { Role } from "../models/types";
 import { voidReturn as r } from "../utils";
 
 const router = Router();
 
-router.get("/utils/search", r(searchUsers));
-
 // Common user APIs
-router.put("/me/username", r(validateUpdateUsername), r(updateUsername));
 router.delete("/", r(deleteUser));
-router.put("/me/password", r(validateChangePassword), r(changeUserPassword));
-router.put("/me/password-with-passkey", r(changePasswordWithPasskey));
 router.put("/me/passkey-prompt-dismiss", r(dismissPasskeyPrompt));
 
 // Admin user APIs

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Modal, Text, Stack, Select } from '@mantine/core';
+import { Modal, Text, Stack, Select, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { UserSearchSelect } from '@/commons/UserSearchSelect';
 import { postRequest, putRequest } from '@/utils/net';
 import { board, BoardPermission } from '@/utils/types';
 import { IconCircleCheck } from '@tabler/icons-react';
@@ -17,7 +16,7 @@ interface BoardAccessModalProps {
     board: board;
     mode?: 'add' | 'update';
     initialUserId?: string | null;
-    initialUsername?: string | null;
+    initialEmail?: string | null;
     initialPermission?: BoardPermission | null;
 }
 
@@ -27,25 +26,25 @@ export const BoardAccessModal = ({
     board,
     mode = 'add',
     initialUserId = null,
-    initialUsername = null,
+    initialEmail = null,
     initialPermission = null
 }: BoardAccessModalProps) => {
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(initialUserId);
+    const [emailInput, setEmailInput] = useState<string>('');
     const [selectedPermission, setSelectedPermission] = useState<string | null>(initialPermission || BoardPermission.VIEWER);
     const { setLoading } = useLoading();
     const isMobile = useMobile();
 
     useEffect(() => {
         if (open) {
-            setSelectedUserId(initialUserId);
+            setEmailInput('');
             setSelectedPermission(initialPermission || BoardPermission.VIEWER);
         }
-    }, [open, initialUserId, initialPermission]);
+    }, [open, initialPermission]);
 
 
     const handleClose = () => {
         if (mode === 'add') {
-            setSelectedUserId(null);
+            setEmailInput('');
         }
         setSelectedPermission(BoardPermission.VIEWER);
         onClose();
@@ -53,10 +52,10 @@ export const BoardAccessModal = ({
 
 
     const handleSubmit = async () => {
-        if (!selectedUserId && mode === 'add') {
+        if (!emailInput && mode === 'add') {
             notifications.show({
                 title: 'Errore',
-                message: 'Seleziona un utente',
+                message: 'Inserisci un\'email',
                 color: 'red'
             });
             return;
@@ -74,7 +73,6 @@ export const BoardAccessModal = ({
         setLoading(true);
 
         try {
-
             if (mode === 'update' && initialUserId) {
                 await putRequest(`boards/${board.id}/access/${initialUserId}`, {
                     body: { permission: selectedPermission }
@@ -86,9 +84,9 @@ export const BoardAccessModal = ({
                     color: 'blue',
                     icon: <IconCircleCheck size={18} />
                 });
-            } else if (selectedUserId) {
+            } else if (mode === 'add' && emailInput) {
                 await postRequest(`boards/${board.id}/access`, {
-                    body: { userId: selectedUserId, permission: selectedPermission }
+                    body: { email: emailInput.toLowerCase(), permission: selectedPermission }
                 });
 
                 notifications.show({
@@ -103,7 +101,7 @@ export const BoardAccessModal = ({
         } catch (err: any) {
             notifications.show({
                 title: 'Errore',
-                message: err.detail || `Si è verificato un errore durante l'${mode === 'add' ? 'aggiunta' : 'aggiornamento'} del permesso`,
+                message: err.detail || err.message || `Si è verificato un errore durante l'${mode === 'add' ? 'aggiunta' : 'aggiornamento'} del permesso`,
                 color: 'red'
             });
         } finally {
@@ -130,24 +128,22 @@ export const BoardAccessModal = ({
         >
             <Text size="sm" mt="sm" ml={3}>
                 {mode === 'add'
-                    ? 'Assegna ad un utente i permessi di accesso'
+                    ? 'Assegna ad un utente i permessi di accesso inserendo la sua email'
                     : 'Modifica il livello di permesso per questo utente.'}
             </Text>
             <ModalPaper>
                 <Stack gap="sm">
-
-
                     {mode === 'add' ? (
-                        <UserSearchSelect
-                            onUserSelect={setSelectedUserId}
-                            placeholder="Cerca un utente..."
-                            label="Seleziona utente"
+                        <TextInput
+                            placeholder="es. utente@email.com"
+                            label="Email utente"
                             required
-                            excludeUsersIds={[board.creator.id]}
+                            value={emailInput}
+                            onChange={(e) => setEmailInput(e.currentTarget.value)}
                         />
-                    ) : initialUsername && (
+                    ) : initialEmail && (
                         <Text size="md" fw={500}>
-                            Utente: <Text span c="blue.4">{initialUsername}</Text>
+                            Utente: <Text span c="blue.4">{initialEmail}</Text>
                         </Text>
                     )}
 

@@ -22,11 +22,11 @@ const UserInfoDisplay = ({}:UserInfoDisplayProps) => {
       radius="xl" 
       size="sm"
     >
-      {getInitials(currentUser.username)}
+      {getInitials(currentUser.email)}
     </Avatar>
     <Box>
       <Text size="sm" fw={500} lh={1.2} style={{ color: 'var(--text-bright)' }}>
-        {currentUser.username}
+        {currentUser.email}
       </Text>
     </Box>
   </Group>

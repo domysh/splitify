@@ -74,7 +74,7 @@ export const useCurrentUser = () => {
         if (me.isLoading) {
             return {
                 id: "",
-                username: "",
+                email: "",
                 role: Role.GUEST,
                 isAdmin: false,
                 isLoading: true,

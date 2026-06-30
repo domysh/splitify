@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { getAgent, clearDatabase, createTestUser } from "./setup";
+import { getAgent, clearDatabase, createTestUser, loginTestUser } from "./setup";
 import { Role } from "../models/types";
 
 describe("User API", () => {
@@ -10,26 +10,16 @@ describe("User API", () => {
 
     beforeAll(async () => {
         await clearDatabase();
-        await createTestUser("admin_user", "password", Role.ADMIN);
-        const guestUser = await createTestUser("guest_user", "password", Role.GUEST);
+        await createTestUser("admin_user@test.com", undefined, Role.ADMIN);
+        const guestUser = await createTestUser("guest_user@test.com", undefined, Role.GUEST);
         targetUserId = guestUser.id;
 
-        const adminRes = await agent.post("/api/login").send({ username: "admin_user", password: "password" });
-        adminToken = adminRes.body.access_token;
-
-        const guestRes = await agent.post("/api/login").send({ username: "guest_user", password: "password" });
-        guestToken = guestRes.body.access_token;
+        adminToken = await loginTestUser(agent as any, "admin_user@test.com");
+        guestToken = await loginTestUser(agent as any, "guest_user@test.com");
     });
 
     afterAll(async () => {
         await clearDatabase();
-    });
-
-    it("should search users", async () => {
-        const res = await agent.get("/api/users/utils/search?q=guest").set("Authorization", `Bearer ${guestToken}`);
-        expect(res.status).toBe(200);
-        expect(res.body.length).toBeGreaterThan(0);
-        expect(res.body[0].username).toBe("guest_user");
     });
 
     it("should allow admin to get all users", async () => {
@@ -41,15 +31,5 @@ describe("User API", () => {
     it("should prevent guest from getting all users", async () => {
         const res = await agent.get("/api/users").set("Authorization", `Bearer ${guestToken}`);
         expect(res.status).toBe(401);
-    });
-
-    it("should update own username", async () => {
-        const res = await agent.put("/api/users/me/username").set("Authorization", `Bearer ${guestToken}`).send({
-            username: "guest_user_updated"
-        });
-        expect(res.status).toBe(200);
-        
-        const meRes = await agent.get("/api/me").set("Authorization", `Bearer ${guestToken}`);
-        expect(meRes.body.username).toBe("guest_user_updated");
     });
 });

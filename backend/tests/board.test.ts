@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { getAgent, clearDatabase, createTestUser } from "./setup";
+import { getAgent, clearDatabase, createTestUser, loginTestUser } from "./setup";
 import { Role } from "../models/types";
 
 describe("Board API", () => {
@@ -9,10 +9,9 @@ describe("Board API", () => {
 
     beforeAll(async () => {
         await clearDatabase();
-        await createTestUser("board_tester", "password", Role.GUEST);
+        await createTestUser("board_tester@test.com", undefined, Role.GUEST);
 
-        const res = await agent.post("/api/login").send({ username: "board_tester", password: "password" });
-        guestToken = res.body.access_token;
+        guestToken = await loginTestUser(agent as any, "board_tester@test.com");
     });
 
     afterAll(async () => {

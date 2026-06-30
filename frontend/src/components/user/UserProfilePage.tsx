@@ -4,36 +4,31 @@ import {
   Title,
   Paper,
   TextInput,
-  PasswordInput,
   Group,
   Text,
   LoadingOverlay,
   Divider,
-  Checkbox,
   Button,
   Stack,
   Flex,
   ThemeIcon,
   Modal,
   ActionIcon,
-  Switch,
   Badge
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { useCurrentUser } from '@/utils/hooks';
 import { useAuth, useHeader, useLoading } from '@/utils/store';
-import { IconUser, IconKey, IconTrash, IconFingerprint, IconDevices, IconDeviceDesktop, IconDeviceMobile, IconMapPin, IconClock, IconTrashX, IconEdit } from '@tabler/icons-react';
-import { startAuthentication } from '@simplewebauthn/browser';
+import { IconTrash, IconFingerprint, IconDevices, IconDeviceDesktop, IconDeviceMobile, IconMapPin, IconClock, IconTrashX, IconEdit } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteRequest, putRequest, postRequest } from '@/utils/net';
 import { startRegistration } from '@simplewebauthn/browser';
 import { HomeButton } from '@/commons/Buttons';
 import { FormButtonBox } from '@/commons/FormButtonBox';
-import { usernameValidator } from '@/utils';
+
 import { YesOrNoModal } from '@/commons/YesOrNoModal';
 import { useNavigate } from 'react-router';
-import { checkboxStyles } from '@/styles/commonStyles';
 
 export default function UserProfilePage() {
   const currentUser = useCurrentUser();
@@ -43,39 +38,13 @@ export default function UserProfilePage() {
   const setHeader = useHeader(props => props.setHeader);
   const { setLoading } = useLoading();
 
-  const [isUpdatingUsername, setIsUpdatingUsername] = useState(false);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [isAddingPasskey, setIsAddingPasskey] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [passkeyModalAction, setPasskeyModalAction] = useState<{type: 'add' | 'rename', id?: string, defaultName?: string} | null>(null);
   const [deletePasskeyId, setDeletePasskeyId] = useState<string | null>(null);
   const [passkeyName, setPasskeyName] = useState('');
-  const [passkeyPassword, setPasskeyPassword] = useState('');
-  const [usePasskeyForPassword, setUsePasskeyForPassword] = useState(false);
 
-  const usernameForm = useForm({
-    initialValues: {
-      username: '',
-    },
-    validate: {
-      username: usernameValidator,
-    },
-  });
 
-  const passwordForm = useForm({
-    initialValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      invalidateSessions: false,
-    },
-    validate: {
-      currentPassword: (value) => (value === '' ? 'Inserisci la password attuale' : null),
-      newPassword: (value) => (value === '' ? 'Inserisci la nuova password' : null),
-      confirmPassword: (value, values) =>
-        value !== values.newPassword ? 'Le password non coincidono' : null,
-    },
-  });
 
   const deleteForm = useForm({
     initialValues: {
@@ -83,75 +52,14 @@ export default function UserProfilePage() {
     },
     validate: {
       deleteConfirmation: (value) =>
-        value !== currentUser?.username ? 'Username non corretto' : null,
+        value !== currentUser?.email ? 'Email non corretta' : null,
     },
   });
 
-  // Aggiorna username quando currentUser cambia
-  useEffect(() => {
-    if (currentUser?.username) {
-      usernameForm.setInitialValues({ username: currentUser.username });
-      usernameForm.reset()
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     setHeader(<HomeButton onClick={() => navigate('/')} />)
   }, [setHeader, navigate]);
-
-  const updateUsernameHandler = () => {
-    setIsUpdatingUsername(true);
-    return putRequest('/users/me/username', { body: { username: usernameForm.values.username } })
-      .then(() => {
-        notifications.show({
-          title: 'Username aggiornato',
-          message: 'Il tuo username è stato aggiornato con successo',
-          color: 'green',
-        });
-        queryClient.invalidateQueries({ queryKey: ['me'] });
-      })
-      .catch((error) => {
-        notifications.show({
-          title: 'Errore',
-          message: error.message || 'Si è verificato un errore durante l\'aggiornamento dell\'username',
-          color: 'red',
-        });
-      })
-      .finally(() => {
-        setIsUpdatingUsername(false);
-      });
-  };
-
-  const updatePasswordHandler = () => {
-    setIsUpdatingPassword(true);
-    return putRequest('/users/me/password', {
-      body: {
-        oldPassword: passwordForm.values.currentPassword,
-        newPassword: passwordForm.values.newPassword
-      },
-      params: {
-        expireSessions: passwordForm.values.invalidateSessions ? 'true' : 'false'
-      }
-    })
-      .then(() => {
-        notifications.show({
-          title: 'Password aggiornata',
-          message: 'La tua password è stata aggiornata con successo',
-          color: 'green',
-        });
-        passwordForm.reset();
-      })
-      .catch((error) => {
-        notifications.show({
-          title: 'Errore',
-          message: error.message || 'Si è verificato un errore durante l\'aggiornamento della password',
-          color: 'red',
-        });
-      })
-      .finally(() => {
-        setIsUpdatingPassword(false);
-      });
-  };
 
   const deleteAccountHandler = () => {
     setLoading(true);
@@ -177,11 +85,11 @@ export default function UserProfilePage() {
       });
   };
 
-  const handleAddPasskey = async (name: string, password: string) => {
+  const handleAddPasskey = async (name: string) => {
     setIsAddingPasskey(true);
     setPasskeyModalAction(null);
     try {
-      const options = await postRequest('/passkey/register/options', { body: { password } });
+      const options = await postRequest('/passkey/register/options', { body: {} });
       const response = await startRegistration(options.options);
       const verifyResp = await postRequest('/passkey/register/verify', {
         body: { response, token: options.token, name }
@@ -210,7 +118,7 @@ export default function UserProfilePage() {
 
   const handleSavePasskeyName = async () => {
     if (passkeyModalAction?.type === 'add') {
-      await handleAddPasskey(passkeyName, passkeyPassword);
+      await handleAddPasskey(passkeyName);
     } else if (passkeyModalAction?.type === 'rename' && passkeyModalAction.id) {
       try {
         setLoading(true);
@@ -238,27 +146,6 @@ export default function UserProfilePage() {
     } finally {
       setLoading(false);
       setDeletePasskeyId(null);
-    }
-  };
-
-  const handleChangePasswordWithPasskey = async () => {
-    if (passwordForm.values.newPassword === '' || passwordForm.values.confirmPassword === '') {
-       notifications.show({ title: 'Errore', message: 'Inserisci e conferma la nuova password', color: 'red' });
-       return;
-    }
-    setLoading(true);
-    try {
-      const options = await postRequest('/passkey/login/options', { body: { username: currentUser?.username } });
-      const response = await startAuthentication(options.options);
-      await putRequest(`/users/me/password-with-passkey?expireSessions=${passwordForm.values.invalidateSessions}`, {
-        body: { newPassword: passwordForm.values.newPassword, response, token: options.token }
-      });
-      notifications.show({ title: 'Password aggiornata', message: 'Password cambiata con successo tramite passkey', color: 'green' });
-      passwordForm.reset();
-    } catch (e: any) {
-      notifications.show({ title: 'Errore', message: e.message || "Autenticazione passkey fallita", color: 'red' });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -297,105 +184,7 @@ export default function UserProfilePage() {
     <Box>
       <Title order={2} mb="xl">Impostazioni Profilo</Title>
 
-      <Paper withBorder p="md" radius="md" mb="lg" className='admin-paper-style'>
-        <Title order={3} mb="md" size="h4">
-          <Group>
-            <IconUser size={20} />
-            <Text>Modifica Username</Text>
-          </Group>
-        </Title>
-        <form onSubmit={usernameForm.onSubmit(updateUsernameHandler)}>
-          <TextInput
-            label="Username"
-            autoComplete="username"
-            placeholder="Inserisci un nuovo username"
-            mb="md"
-            {...usernameForm.getInputProps('username')}
-          />
-          <FormButtonBox
-            loading={isUpdatingUsername}
-            label='Aggiorna Username'
-            hideCancel
-            disabled={!usernameForm.isDirty()}
-          />
-        </form>
-      </Paper>
 
-      <Paper withBorder p="md" radius="md" mb="lg" className='admin-paper-style'>
-        <Group justify="space-between" mb="md" align="center">
-          <Title order={3} size="h4">
-            <Group>
-              <IconKey size={20} />
-              <Text>Modifica Password</Text>
-            </Group>
-          </Title>
-          {currentUser?.passkeys && currentUser.passkeys.length > 0 && (
-            <Switch 
-              label="Usa Passkey" 
-              checked={usePasskeyForPassword} 
-              onChange={(e) => {
-                setUsePasskeyForPassword(e.currentTarget.checked);
-                passwordForm.setFieldValue('currentPassword', '');
-              }} 
-            />
-          )}
-        </Group>
-        <form onSubmit={passwordForm.onSubmit(updatePasswordHandler)}>
-          {!usePasskeyForPassword && (
-            <PasswordInput
-              label="Password attuale"
-              autoComplete="current-password"
-              placeholder="Inserisci la password attuale"
-              mb="md"
-              required
-              {...passwordForm.getInputProps('currentPassword')}
-            />
-          )}
-          <PasswordInput
-            label="Nuova password"
-            autoComplete="new-password"
-            placeholder="Inserisci la nuova password"
-            mb="md"
-            {...passwordForm.getInputProps('newPassword')}
-          />
-          <PasswordInput
-            label="Conferma password"
-            autoComplete="new-password"
-            placeholder="Conferma la nuova password"
-            mb="md"
-            {...passwordForm.getInputProps('confirmPassword')}
-          />
-          <Checkbox
-            label="Disconnetti altri dispositivi"
-            description="Termina tutte le altre sessioni attive"
-            mb="md"
-            {...passwordForm.getInputProps('invalidateSessions', { type: 'checkbox' })}
-            styles={checkboxStyles}
-          />
-          <Flex gap="sm" align="center" direction={{ base: 'column', sm: 'row' }}>
-            {!usePasskeyForPassword ? (
-              <Box style={{ flex: 1, width: '100%' }}>
-                <FormButtonBox
-                  loading={isUpdatingPassword}
-                  label='Aggiorna Password'
-                  hideCancel
-                  disabled={passwordForm.values.newPassword === '' || passwordForm.values.confirmPassword === '' || passwordForm.values.currentPassword === ''}
-                />
-              </Box>
-            ) : (
-              <Button
-                variant="light"
-                onClick={handleChangePasswordWithPasskey}
-                leftSection={<IconFingerprint size={20} />}
-                disabled={passwordForm.values.newPassword === '' || passwordForm.values.confirmPassword === ''}
-                style={{ flex: 1, width: '100%' }}
-              >
-                Cambia con Passkey
-              </Button>
-            )}
-          </Flex>
-        </form>
-      </Paper>
 
       <Paper withBorder p="md" radius="md" mb="lg" className='admin-paper-style'>
         <Title order={3} mb="md" size="h4">
@@ -439,7 +228,6 @@ export default function UserProfilePage() {
           loading={isAddingPasskey}
           onClick={() => {
             setPasskeyName('');
-            setPasskeyPassword('');
             setPasskeyModalAction({ type: 'add' });
           }}
           leftSection={<IconFingerprint size={20} />}
@@ -521,15 +309,14 @@ export default function UserProfilePage() {
         <Divider my="sm" />
         <form onSubmit={deleteForm.onSubmit(() => setIsDeleteModalOpen(true))}>
           <Text c="dimmed" mb="sm">
-            Per confermare l'eliminazione del tuo account, inserisci il tuo username:
-            <Text fw={700} span> {currentUser?.username}</Text>
+            Per confermare l'eliminazione del tuo account, inserisci la tua email:
+            <Text fw={700} span> {currentUser?.email}</Text>
           </Text>
           <TextInput
-            placeholder="Inserisci il tuo username"
+            placeholder="Inserisci la tua email"
             {...deleteForm.getInputProps('deleteConfirmation')}
           />
           <FormButtonBox
-            loading={isUpdatingPassword}
             label='Elimina Account'
             disabled={!deleteForm.isValid()}
             color='red'
@@ -585,16 +372,8 @@ export default function UserProfilePage() {
           data-autofocus
           mb={passkeyModalAction?.type === 'add' ? 'sm' : 'md'}
         />
-        {passkeyModalAction?.type === 'add' && (
-          <PasswordInput
-            label="Password attuale"
-            placeholder="Inserisci la password"
-            value={passkeyPassword}
-            onChange={(e) => setPasskeyPassword(e.currentTarget.value)}
-            mb="md"
-          />
-        )}
-        <Button fullWidth onClick={handleSavePasskeyName} disabled={!passkeyName.trim() || (passkeyModalAction?.type === 'add' && !passkeyPassword.trim())}>
+
+        <Button fullWidth onClick={handleSavePasskeyName} disabled={!passkeyName.trim()}>
           Salva
         </Button>
       </Modal>

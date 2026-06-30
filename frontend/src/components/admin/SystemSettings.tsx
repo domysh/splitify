@@ -13,7 +13,6 @@ const SystemSettings = () => {
     const { setLoading } = useLoading();
     const queryClient = useQueryClient();
     const regInfo = registrationInfoQuery();
-    
     const form = useForm({
         initialValues: {
             registrationMode: RegistrationMode.PRIVATE,
@@ -45,7 +44,7 @@ const SystemSettings = () => {
         }
     }, [regInfo.isFetching]);
 
-    
+
     const handleSubmit = async (values: typeof form.values) => {
         setLoading(true);
         
@@ -81,7 +80,7 @@ const SystemSettings = () => {
         }
     };
 
-    
+
     const generateRandomToken = () => {
         const chars = 'abcdef0123456789';
         let token = '';
@@ -103,7 +102,7 @@ const SystemSettings = () => {
         return (
             <Alert color="red" title="Errore" mt="md">
                 Si è verificato un errore durante il caricamento delle impostazioni di sistema.
-                <Button mt="md" onClick={() => regInfo.refetch()}>
+                <Button mt="md" onClick={() => { regInfo.refetch(); }}>
                     Riprova
                 </Button>
             </Alert>
@@ -183,14 +182,14 @@ const SystemSettings = () => {
                                 <Group align="center">
                                     <TextInput
                                         readOnly
-                                        value={`${window.location.origin}/register/${form.values.registrationToken}`}
+                                        value={`${window.location.origin}/?token=${form.values.registrationToken}`}
                                         style={{ flex: 1 }}
                                         onClick={(e) => e.currentTarget.select()}
                                     />
                                     <Button
                                         variant="light"
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/register/${form.values.registrationToken}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/?token=${form.values.registrationToken}`);
                                             notifications.show({
                                                 title: 'Link copiato',
                                                 message: 'Il link di registrazione è stato copiato negli appunti',
@@ -231,6 +230,7 @@ const SystemSettings = () => {
                     </Button>
                 </Group>
             </form>
+
         </Paper>
     );
 };

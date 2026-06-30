@@ -49,7 +49,7 @@ export const UserDeleteModal = ({ open, onClose, userId }: UserDeleteModalProps)
                     Sei sicuro di voler eliminare l'utente
                 </Text>
                 <Text size="lg" fw={700} ta="center">
-                    {user?.username || 'Utente'}?
+                    {user?.email || 'Utente'}?
                 </Text>
                 <Text size="sm" c="dimmed" mt="xs" ta="center">
                     Questa azione è irreversibile e rimuoverà completamente l'account.

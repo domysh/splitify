@@ -79,7 +79,7 @@ const COLORS = ['red', 'pink', 'grape', 'violet', 'indigo', 'blue', 'cyan', 'tea
         if (aSocket.user && aSocket.user.id) {
           onlineUsersMap.set(aSocket.user.id, { 
             id: aSocket.user.id, 
-            username: aSocket.user.username 
+            username: aSocket.user.email 
           });
         } else {
           const anonName = (aSocket as any).anonName || 'Anonimo';

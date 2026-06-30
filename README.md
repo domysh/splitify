@@ -23,7 +23,12 @@ Prima di eseguire il deploy, specialmente se intendi utilizzare un dominio, è r
 Ecco le variabili supportate che puoi impostare:
 - `RP_ID`: Il dominio del server (es. `splitify.miodominio.com`). Il default è `localhost`. È **necessario** impostarlo in produzione affinché funzionino le Passkey.
 - `RP_ORIGIN`: L'origine completa per WebAuthn (es. `https://splitify.miodominio.com`). Il default è `http://localhost:8080`.
-- `DEFAULT_PSW`: Password di default per l'account `admin` che viene creato al primo avvio. Se non definita, verrà generata una password casuale (visibile nei log del container).
+- `ADMIN_EMAIL`: **Obbligatorio**. L'email dell'account admin predefinito che viene creato al primo avvio. Se non definita (e non ci sono admin), il backend si rifiuterà di avviarsi.
+- `SMTP_HOST`: **Obbligatorio**. L'host del server SMTP per l'invio delle email di OTP (es. `smtp.gmail.com`). Se non definito, il backend si rifiuterà di avviarsi.
+- `SMTP_PORT`: La porta del server SMTP (es. `465` o `587`). Default `587`.
+- `SMTP_USER`: L'username per l'autenticazione SMTP.
+- `SMTP_PASS`: La password per l'autenticazione SMTP.
+- `SMTP_FROM`: L'indirizzo mittente (es. `Splitify <noreply@miodominio.com>`). Se non definito, utilizza di default il valore di `SMTP_USER`.
 - `DATABASE_URL`: Stringa di connessione a Postgres. Il default in produzione è `postgresql://splitify:splitify_password@postgres:5432/splitify?schema=public`.
 - `PORT`: Porta su cui il server backend ascolta internamente. Default `8080`.
 - `CORS_ALLOW`: Impostare a `true` o `1` per abilitare CORS.

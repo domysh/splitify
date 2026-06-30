@@ -9,36 +9,51 @@ import {
     Paper,
     Space,
     Alert,
-    PasswordInput,
     Checkbox,
     Image,
     Modal,
     Stack,
+    PinInput,
+    ThemeIcon,
+    Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useCallback, useEffect, useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { postRequest, getRequest, putRequest } from "@/utils/net";
-import { IconLogin, IconShield, IconFingerprint } from "@tabler/icons-react";
+import { IconLogin, IconShield, IconFingerprint, IconArrowLeft, IconMailOpened, IconRefresh } from "@tabler/icons-react";
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { RegistrationMode } from "@/utils/types";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useSearchParams } from "react-router";
 import { useAuth, useHeader, useLoading } from "@/utils/store";
 import { registrationInfoQuery } from "@/utils/queries";
-import { usernameValidator } from "@/utils";
-import { checkboxStyles } from "@/styles/commonStyles";
+
+import { checkboxStyles, inputStyles } from "@/styles/commonStyles";
 
 export interface LoginProviderProps {
     children?: React.ReactNode;
     force?: boolean;
 }
 
+type AuthStep = 'EMAIL' | 'OTP';
+
 const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     const { token, login: setToken, tokenInfo } = useAuth();
     const { setLoading } = useLoading();
     const regInfo = registrationInfoQuery();
     const [error, setError] = useState<string | null>(null);
-    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const urlToken = searchParams.get('token');
+
+    const [step, setStep] = useState<AuthStep>('EMAIL');
+    const [resendTimer, setResendTimer] = useState(0);
+
+    useEffect(() => {
+        if (resendTimer > 0) {
+            const timerId = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+            return () => clearTimeout(timerId);
+        }
+    }, [resendTimer]);
 
     const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false);
     const [tempToken, setTempToken] = useState<string | null>(null);
@@ -49,13 +64,15 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
 
     const form = useForm({
         initialValues: {
-            username: "",
-            password: "",
-            keepLogin: false,
+            email: "",
+            otp: "",
+            token: urlToken || "",
+            keepLogin: true,
         },
         validate: {
-            username: usernameValidator,
-            password: (value) => (!value ? "Password obbligatoria" : null),
+            email: (value) => (step === 'EMAIL') && !/^\S+@\S+\.\S+$/.test(value) ? "Email non valida" : null,
+            otp: (value) => (step === 'OTP') && value.length !== 6 ? "Il codice deve essere di 6 cifre" : null,
+            token: (value) => step === 'OTP' && registrationMode === RegistrationMode.TOKEN && !value ? "Token obbligatorio" : null,
         },
     });
 
@@ -98,65 +115,78 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     }, [tokenInfo, performTokenRefresh, setHeader, setToken]);
 
     useEffect(() => {
-        form.reset();
         if (!token) {
             setHeader(null);
+            setStep('EMAIL');
+            form.setFieldValue('otp', '');
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token, setHeader]);
 
-    const login = useCallback(
-        (username: string, password: string, keepLogin: boolean) => {
-            setLoading(true);
-            setError(null);
+    const checkPasskeyAndComplete = async (accessToken: string) => {
+        try {
+            const headers = { Authorization: 'Bearer ' + accessToken };
+            const me = await getRequest('/me', { headers });
 
-            postRequest("/login", {
-                body: { username, password, keepLogin },
-            })
-                .then(async (res) => {
-                    if (res.access_token) {
-                        try {
-                            const headers = { Authorization: 'Bearer ' + res.access_token };
-                            const me = await getRequest('/me', { headers });
-                            
-                            if (me.passkeys?.length === 0 && !me.passkeyPromptDismissed) {
-                                setTempToken(res.access_token);
-                                setShowPasskeyPrompt(true);
-                                return;
-                            }
-                        } catch (err) {
-                            console.error("Failed to check passkey status", err);
-                        }
+            if (me.passkeys?.length === 0 && !me.passkeyPromptDismissed) {
+                setTempToken(accessToken);
+                setShowPasskeyPrompt(true);
+                return;
+            }
+        } catch (err) {
+            console.error("Failed to check passkey status", err);
+        }
 
-                        setToken(res.access_token);
-                        notifications.show({
-                            title: "Accesso effettuato",
-                            message: "Benvenuto su Splitify!",
-                            color: "green",
-                        });
-                    } else {
-                        setError("Risposta del server non valida. Riprova.");
-                    }
-                })
-                .catch((error) => {
-                    setError(
-                        error?.message ||
-                        "Si è verificato un errore durante l'accesso.",
-                    );
-                    notifications.show({
-                        title: "Errore di autenticazione",
-                        message:
-                            error?.message ||
-                            "Credenziali non valide o errore del server",
-                        color: "red",
-                    });
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
-        },
-        [setLoading, setToken, form.values.username, form.values.password],
-    );
+        setToken(accessToken);
+        notifications.show({
+            title: "Accesso effettuato",
+            message: "Benvenuto su Splitify!",
+            color: "green",
+        });
+    };
+
+    const handleEmailSubmit = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await postRequest("/login", { body: { email: form.values.email } });
+            if (res.requiresOtp) {
+                setStep('OTP');
+                setResendTimer(60);
+                notifications.show({ title: 'Codice inviato', message: 'Controlla la tua email', color: 'blue' });
+            }
+        } catch (err: any) {
+            setError(err.message || "Errore durante l'invio dell'email");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleOtpSubmit = async (otpOverride?: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await postRequest("/verify-otp", { 
+                body: { 
+                    email: form.values.email, 
+                    code: otpOverride || form.values.otp, 
+                    keepLogin: form.values.keepLogin, 
+                    token: form.values.token 
+                } 
+            });
+            if (res.access_token) {
+                await checkPasskeyAndComplete(res.access_token);
+            }
+        } catch (err: any) {
+            setError(err.message || "Codice non valido o scaduto");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (step === 'EMAIL') await handleEmailSubmit();
+        else if (step === 'OTP') await handleOtpSubmit();
+    };
 
     const finalizeLogin = useCallback(() => {
         if (tempToken) {
@@ -169,7 +199,7 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                     color: "green",
                 });
                 setTempToken(null);
-            }, 300); // Attendiamo che il modal finisca l'animazione di chiusura per evitare bug di scroll-lock sul body
+            }, 300);
         }
     }, [tempToken, setToken]);
 
@@ -178,12 +208,12 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
         try {
             const headers = { Authorization: 'Bearer ' + tempToken };
             const options = await postRequest('/passkey/register/options', { 
-                body: { password: form.values.password }, 
+                body: { password: "none" }, 
                 headers 
             });
             const response = await startRegistration(options.options);
             const verifyResp = await postRequest('/passkey/register/verify', {
-                body: { response, token: options.token, name: "Dispositivo di " + form.values.username },
+                body: { response, token: options.token, name: "Dispositivo di " + form.values.email },
                 headers
             });
             if (verifyResp.verified) {
@@ -195,7 +225,7 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             setIsCreatingPasskey(false);
             finalizeLogin();
         }
-    }, [tempToken, form.values.password, form.values.username, finalizeLogin]);
+    }, [tempToken, form.values.email, finalizeLogin]);
 
     const handlePostponePasskey = useCallback(() => {
         finalizeLogin();
@@ -211,23 +241,13 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
         finalizeLogin();
     }, [tempToken, finalizeLogin]);
 
-    const navigateToSignup = useCallback(() => {
-        navigate("/register");
-    }, [navigate]);
 
     const handlePasskeyLogin = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            // 1. Get options
-            // If username is typed, send it.
-            const username = form.values.username;
-            const options = await postRequest('/passkey/login/options', { body: { username: username || undefined } });
-
-            // 2. Start authentication
+            const options = await postRequest('/passkey/login/options', { body: {} });
             const response = await startAuthentication(options.options);
-
-            // 3. Verify
             const verifyResp = await postRequest('/passkey/login/verify', {
                 body: {
                     response,
@@ -257,7 +277,7 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
         } finally {
             setLoading(false);
         }
-    }, [form.values.username, form.values.keepLogin, setLoading, setToken]);
+    }, [form.values.keepLogin, setLoading, setToken]);
 
     if (token && !force) {
         return children ?? <Outlet />;
@@ -266,7 +286,7 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     return (
         <Container size="sm" mt={50}>
             <Modal opened={showPasskeyPrompt} onClose={() => {}} withCloseButton={false} title={<Title order={3}>Aggiungi una Passkey</Title>} centered>
-                <Text mb="md">Aggiungi una passkey per accedere più velocemente usando l'impronta digitale o il Face ID, senza dover inserire la password al prossimo accesso!</Text>
+                <Text mb="md">Aggiungi una passkey per accedere più velocemente usando l'impronta digitale o il Face ID, senza dover attendere l'email al prossimo accesso!</Text>
                 <Stack>
                     <Button loading={isCreatingPasskey} leftSection={<IconFingerprint size={20}/>} onClick={handleCreatePasskeyFromPrompt}>
                         Crea subito
@@ -342,14 +362,21 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                 >
                     <Group gap="sm">
                         <IconShield color="#9ba3ff" />
-                        <Text>Accedi al tuo account</Text>
+                        <Text>
+                            {step === 'EMAIL' && (
+                                (registrationMode === RegistrationMode.PUBLIC || (registrationMode === RegistrationMode.TOKEN && urlToken)) 
+                                ? "Accedi o Registrati" 
+                                : "Accedi a Splitify"
+                            )}
+                            {step === 'OTP' && "Inserisci OTP"}
+                        </Text>
                     </Group>
                 </Title>
 
                 {error && (
                     <Alert
                         color="red"
-                        title="Errore di accesso"
+                        title="Errore"
                         mb="md"
                         radius="md"
                         style={{
@@ -361,170 +388,153 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                     </Alert>
                 )}
 
-                <form
-                    onSubmit={form.onSubmit((values) =>
-                        login(
-                            values.username,
-                            values.password,
-                            values.keepLogin,
-                        ),
+                <form onSubmit={form.onSubmit(handleSubmit)}>
+                    {step === 'EMAIL' && (
+                        <>
+                            <Input.Wrapper label="Email" required error={form.errors.email} styles={{ label: { marginBottom: 6, fontSize: "0.95rem", fontWeight: 500 } }}>
+                                <Input name="email" autoComplete="email" placeholder="Inserisci la tua email" {...form.getInputProps("email")} styles={inputStyles} />
+                            </Input.Wrapper>
+                        </>
                     )}
-                >
-                    <Input.Wrapper
-                        label="Nome utente"
-                        required
-                        error={form.errors.username}
-                        styles={{
-                            label: {
-                                marginBottom: 6,
-                                fontSize: "0.95rem",
-                                fontWeight: 500,
-                            },
-                        }}
-                    >
-                        <Input
-                            name="username"
-                            autoComplete="username"
-                            placeholder="Inserisci il tuo nome utente"
-                            {...form.getInputProps("username")}
-                            styles={{
-                                input: {
-                                    background: "rgba(16, 17, 30, 0.6)",
-                                    border: "1px solid var(--primary-border)",
-                                    padding: "14px 18px",
-                                    borderRadius: "10px",
-                                    fontSize: "15px",
-                                    color: "white",
-                                    transition: "var(--transition-standard)",
-                                    "&:focus": {
-                                        borderColor: "rgba(155, 163, 255, 0.8)",
-                                        boxShadow:
-                                            "0 0 0 3px var(--primary-border)",
-                                    },
-                                    "&:hover:not(:focus)": {
-                                        borderColor: "rgba(155, 163, 255, 0.5)",
-                                    },
-                                },
-                            }}
-                        />
-                    </Input.Wrapper>
+
+                    {step === 'OTP' && (
+                        <Box className="center-flex-col" p="xl" mt="md" mb="md" style={{ 
+                            background: 'rgba(30, 35, 55, 0.4)', 
+                            borderRadius: '16px', 
+                            border: '1px solid rgba(122, 132, 255, 0.15)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                            backdropFilter: 'blur(10px)'
+                        }}>
+                            <ThemeIcon size={64} radius="100%" variant="light" color="indigo" mb="md" style={{ background: 'rgba(122, 132, 255, 0.1)' }}>
+                                <IconMailOpened size={32} stroke={1.5} color="#9ba3ff" />
+                            </ThemeIcon>
+                            
+                            <Title order={4} mb="xs" ta="center" style={{ fontWeight: 600 }}>
+                                Verifica la tua email
+                            </Title>
+                            
+                            <Text mb="xl" ta="center" size="sm" c="dimmed" px="xs" style={{ lineHeight: 1.5 }}>
+                                Abbiamo inviato un codice temporaneo a <Text span fw={600} c="#9ba3ff">{form.values.email}</Text>. Inseriscilo qui sotto per continuare.
+                            </Text>
+                            
+                            <PinInput 
+                                length={6} 
+                                type="number" 
+                                size="lg" 
+                                mb="md" 
+                                placeholder="-"
+                                {...form.getInputProps('otp')} 
+                                onComplete={(value) => {
+                                    if (registrationMode === RegistrationMode.TOKEN && !form.values.token) {
+                                        return;
+                                    }
+                                    handleOtpSubmit(value);
+                                }}
+                                styles={{
+                                    input: {
+                                        background: 'rgba(0,0,0,0.2)',
+                                        borderColor: 'rgba(122, 132, 255, 0.2)',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s',
+                                        borderRadius: '8px',
+                                        '&:focus': {
+                                            borderColor: '#9ba3ff',
+                                            boxShadow: '0 0 0 2px rgba(122, 132, 255, 0.15)'
+                                        }
+                                    }
+                                }}
+                            />
+
+                            {registrationMode === RegistrationMode.TOKEN && (
+                                <Input.Wrapper label="Token di Registrazione" required error={form.errors.token} w="100%" mt="sm" styles={{ label: { marginBottom: 6, fontSize: "0.95rem", fontWeight: 500 } }}>
+                                    <Input name="token" placeholder="Richiesto per nuovi account" {...form.getInputProps("token")} styles={inputStyles} />
+                                </Input.Wrapper>
+                            )}
+
+                            <Button 
+                                variant="subtle" 
+                                size="sm" 
+                                color="indigo"
+                                mt="md"
+                                leftSection={<IconRefresh size={16} stroke={1.5} />}
+                                disabled={resendTimer > 0}
+                                onClick={handleEmailSubmit}
+                                style={{ 
+                                    opacity: resendTimer > 0 ? 0.6 : 1,
+                                    fontWeight: 500,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {resendTimer > 0 ? `Nuovo invio tra ${resendTimer}s` : "Non hai ricevuto il codice? Invia di nuovo"}
+                            </Button>
+                        </Box>
+                    )}
 
                     <Space h="lg" />
 
-                    <PasswordInput
-                        name="password"
-                        autoComplete="current-password"
-                        label="Password"
-                        placeholder="Inserisci la tua password"
-                        required
-                        error={form.errors.password}
-                        {...form.getInputProps("password")}
-                        styles={{
-                            label: {
-                                marginBottom: 6,
-                                fontSize: "0.95rem",
-                                fontWeight: 500,
-                            },
-                            input: {
-                                background: "rgba(16, 17, 30, 0.6)",
-                                border: "1px solid var(--primary-border)",
-                                padding: "14px 18px",
-                                borderRadius: "10px",
-                                fontSize: "15px",
-                                color: "white",
-                                transition: "var(--transition-standard)",
-                                "&:focus": {
-                                    borderColor: "rgba(155, 163, 255, 0.8)",
-                                    boxShadow:
-                                        "0 0 0 3px var(--primary-border)",
-                                },
-                                "&:hover:not(:focus)": {
-                                    borderColor: "rgba(155, 163, 255, 0.5)",
-                                },
-                            },
-                            innerInput: {
-                                color: "white",
-                            },
-                        }}
-                    />
+                    {(step === 'EMAIL' || step === 'OTP') && (
+                        <Checkbox
+                            label="Rimani connesso"
+                            {...form.getInputProps("keepLogin", { type: "checkbox" })}
+                            styles={checkboxStyles}
+                        />
+                    )}
 
-                    <Space h="md" />
-
-                    <Checkbox
-                        label="Rimani connesso"
-                        {...form.getInputProps("keepLogin", {
-                            type: "checkbox",
-                        })}
-                        styles={checkboxStyles}
-                    />
-
-                    <Group mt="xl" justify="flex-end">
-                        {registrationMode === RegistrationMode.PUBLIC && (
+                    {step === 'EMAIL' ? (
+                        <Stack mt="xl" gap="md">
+                            <Button
+                                type="submit"
+                                variant="gradient"
+                                gradient={{ from: "#7a84ff", to: "#9ba3ff", deg: 35 }}
+                                leftSection={<IconLogin size={20} />}
+                                className="transparency-on-hover"
+                                size="md"
+                                fullWidth
+                                style={{ boxShadow: "0 4px 10px rgba(122, 132, 255, 0.3)", transition: "var(--transition-standard)", fontWeight: 600 }}
+                            >
+                                Continua con Email
+                            </Button>
+                            
+                            <Divider label="oppure" labelPosition="center" color="dark.4" />
+                            
                             <Button
                                 variant="light"
-                                color="blue"
-                                onClick={navigateToSignup}
+                                color="indigo"
+                                leftSection={<IconFingerprint size={20} />}
+                                onClick={handlePasskeyLogin}
+                                fullWidth
                                 size="md"
-                                px="md"
                                 className="transparency-on-hover"
-                                style={{
-                                    transition: "var(--transition-standard)",
-                                    fontWeight: 600,
-                                }}
+                                style={{ fontWeight: 600 }}
                             >
-                                Registrati
+                                Accedi con Passkey
                             </Button>
-                        )}
-
-                        <Button
-                            type="submit"
-                            variant="gradient"
-                            gradient={{
-                                from: "#7a84ff",
-                                to: "#9ba3ff",
-                                deg: 35,
-                            }}
-                            leftSection={<IconLogin size={25} />}
-                            className="transparency-on-hover"
-                            ml={
-                                registrationMode === RegistrationMode.PRIVATE
-                                    ? "auto"
-                                    : 0
-                            }
-                            size="md"
-                            px="md"
-                            style={{
-                                boxShadow:
-                                    "0 4px 10px rgba(122, 132, 255, 0.3)",
-                                transition: "var(--transition-standard)",
-                                fontWeight: 600,
-                            }}
-                        >
-                            Accedi
-                        </Button>
-                    </Group>
-                    <Group justify="center" mt="md">
-                        <Button
-                            variant="subtle"
-                            color="gray"
-                            leftSection={<IconFingerprint size={20} />}
-                            onClick={handlePasskeyLogin}
-                            fullWidth
-                            className="transparency-on-hover"
-                        >
-                            Accedi con Passkey
-                        </Button>
-                    </Group>
+                        </Stack>
+                    ) : (
+                        <Group mt="xl" justify="space-between">
+                            <Button variant="subtle" color="gray" onClick={() => setStep('EMAIL')} leftSection={<IconArrowLeft size={16} />}>
+                                Indietro
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="gradient"
+                                gradient={{ from: "#7a84ff", to: "#9ba3ff", deg: 35 }}
+                                leftSection={<IconLogin size={20} />}
+                                className="transparency-on-hover"
+                                size="md"
+                                px="xl"
+                                ml="auto"
+                                style={{ boxShadow: "0 4px 10px rgba(122, 132, 255, 0.3)", transition: "var(--transition-standard)", fontWeight: 600 }}
+                            >
+                                Verifica OTP
+                            </Button>
+                        </Group>
+                    )}
                 </form>
             </Paper>
 
-            <Text
-                ta="center"
-                size="sm"
-                c="dimmed"
-                mt="lg"
-                style={{ opacity: 0.7 }}
-            >
+            <Text ta="center" size="sm" c="dimmed" mt="lg" style={{ opacity: 0.7 }}>
                 Splitify 💰 — La piattaforma per gestire le spese in gruppo
             </Text>
         </Container>

@@ -8,7 +8,7 @@ const fetchBoardWithPrisma = async (boardId: string, loggedId?: string, options:
   const board = await prisma.board.findUnique({
     where: { id: boardId },
     include: {
-      creator: { select: { id: true, username: true } },
+      creator: { select: { id: true, email: true } },
       categories: options.categories || options.stats ? { orderBy: { order: 'asc' } } : false,
       products: options.products || options.stats ? { include: { categories: true } } : false,
       members: options.members || options.stats ? { include: { categories: true } } : false,
@@ -55,7 +55,7 @@ export const getBoards = async (req: AuthRequest, res: Response) => {
         ]
       },
       include: {
-        creator: { select: { id: true, username: true } },
+        creator: { select: { id: true, email: true } },
         categories: true,
         products: { include: { categories: true } },
         members: { include: { categories: true } },

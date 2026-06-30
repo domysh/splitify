@@ -58,17 +58,19 @@ export const UserTable = ({ users }: UserTableProps) => {
         >
             <Table.Thead>
                 <Table.Tr>
-                    <Table.Th>Username</Table.Th>
+                    <Table.Th>Email</Table.Th>
                     <Table.Th>Ruolo</Table.Th>
+                    <Table.Th>Bacheche</Table.Th>
                     <Table.Th>Ultimo accesso</Table.Th>
                     <Table.Th style={{ width: 120 }}>Azioni</Table.Th>
                 </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-                {users.map(user => (
+                {users.map((user: any) => (
                     <Table.Tr key={user.id}>
-                        <Table.Td><Text fw={500}>{user.username}</Text></Table.Td>
+                        <Table.Td><Text fw={500}>{user.email}</Text></Table.Td>
                         <Table.Td>{getRoleBadge(user.role)}</Table.Td>
+                        <Table.Td><Text>{user.boardsCount || 0}</Text></Table.Td>
                         <Table.Td>{formatLastAccess(user)}</Table.Td>
                         <Table.Td>
                             <Group gap="xs">

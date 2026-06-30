@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { getRequest, searchUsers } from "@/utils/net";
-import { board, user, transaction, boardListing, boardAccess, searchUser, GlobalStats, RegistrationInfo } from "@/utils/types";
+import { getRequest } from "@/utils/net";
+import { board, user, transaction, boardListing, boardAccess, GlobalStats, RegistrationInfo } from "@/utils/types";
 import { notifications } from "@mantine/notifications";
-import { useState, useEffect } from "react";
 import { useAuth } from "./store";
 
 const retryLogic = (failureCount:number, error:any) => {
@@ -71,37 +70,17 @@ export const transactionsQuery = (boardId: string) => useQuery<transaction[], Er
 export const adminUsersQuery = () => {
     return useQuery({
         queryKey: ['users'],
-        queryFn: () => getRequest("users").then((data) => (data as user[]).sort((a, b) => a.username.localeCompare(b.username))),
+        queryFn: () => getRequest("users").then((data) => (data as user[]).sort((a, b) => a.email.localeCompare(b.email))),
         retry: retryLogic,
     });
 }
 
 export const boardAccessQuery = (boardId?: string) => useQuery<boardAccess[], Error>({
     queryKey: ['boards', boardId, 'access'],
-    queryFn: () => getRequest(`boards/${boardId}/access`).then((data) => (data as boardAccess[]).sort((a, b) => a.username.localeCompare(b.username))),
+    queryFn: () => getRequest(`boards/${boardId}/access`).then((data) => (data as boardAccess[]).sort((a, b) => a.email.localeCompare(b.email))),
     enabled: boardId? true : false,
     staleTime: 5 * 60 * 1000
 });
-
-export const searchUsersQuery = (searchTerm: string) => {
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-    
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearchTerm(searchTerm);
-        }, 300);
-        
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
-    
-    return useQuery<searchUser[], Error>({
-        queryKey: ['users', 'search', debouncedSearchTerm],
-        queryFn: () => searchUsers(debouncedSearchTerm),
-        enabled: debouncedSearchTerm.length >= 2,
-        staleTime: 30000, 
-        retry: false,
-    });
-};
 
 export const registrationInfoQuery = () => {
     return useQuery({

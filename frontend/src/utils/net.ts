@@ -117,15 +117,7 @@ export const deleteRequest = async (url:string, options: {params?: {[p:string]:a
     }).then(elaborateJsonRequest)
 }
 
-export const searchUsers = async (query: string): Promise<any[]> => {
-    if (!query || query.length < 2) return [];
-    try {
-        return await getRequest('users/utils/search', { params: { q: query } });
-    } catch (error) {
-        console.error('Errore nella ricerca utenti:', error);
-        return [];
-    }
-};
+
 
 export const togglePinBoard = async (boardId: string) => {
     return await postRequest(`boards/${boardId}/pin`);

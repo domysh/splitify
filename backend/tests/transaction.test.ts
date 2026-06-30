@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { getAgent, clearDatabase, createTestUser } from "./setup";
+import { getAgent, clearDatabase, createTestUser, loginTestUser } from "./setup";
 import { Role } from "../models/types";
 
 describe("Transaction API", () => {
@@ -10,10 +10,9 @@ describe("Transaction API", () => {
 
     beforeAll(async () => {
         await clearDatabase();
-        await createTestUser("tx_tester", "password", Role.GUEST);
+        await createTestUser("tx_tester@test.com", undefined, Role.GUEST);
 
-        const res = await agent.post("/api/login").send({ username: "tx_tester", password: "password" });
-        guestToken = res.body.access_token;
+        guestToken = await loginTestUser(agent as any, "tx_tester@test.com");
 
         // Create board and member for transactions
         const boardRes = await agent.post("/api/boards").set("Authorization", `Bearer ${guestToken}`).send({

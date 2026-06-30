@@ -20,8 +20,8 @@ export interface UserSession {
 
 export interface user {
     id: string;
-    username: string;
-    role: string;
+    email: string;
+    role: Role;
     lastAccess?: string;
     sessions?: UserSession[];
     pinnedBoards?: string[];
@@ -104,16 +104,21 @@ export enum BoardPermission {
     VIEWER = "viewer"
 }
 
+export interface AddBoardAccess {
+    email: string;
+    permission: BoardPermission;
+}
+
 export interface boardAccess {
     id: string;
     userId: string;
-    username: string;
+    email: string;
     permission: BoardPermission;
 }
 
 export interface boardCreator {
     id: string;
-    username: string;
+    email: string;
 }
 
 export interface board extends BoardBasicInfo {
@@ -151,7 +156,7 @@ export interface userDebit {
 
 export interface searchUser {
     id: string;
-    username: string;
+    email: string;
 }
 
 export interface JwtPayload {

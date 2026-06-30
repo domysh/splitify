@@ -27,18 +27,19 @@ export const clearDatabase = async () => {
     await prisma.user.deleteMany();
 };
 
-export const createTestUser = async (username = "testuser", password = "password123", role = Role.GUEST) => {
-    const hashedPassword = await hashPassword(password);
+export const createTestUser = async (email = "test@example.com", _password?: string, role = Role.GUEST) => {
     return await prisma.user.create({
         data: {
-            username,
-            password: hashedPassword,
+            email,
             role,
         }
     });
 };
 
-export const loginTestUser = async (agent: request.SuperAgentTest, username = "testuser", password = "password123") => {
-    const res = await agent.post("/api/login").send({ username, password });
-    return res.headers["set-cookie"]; // Extract cookies for future requests
+export const loginTestUser = async (agent: request.SuperAgentTest, email = "test@example.com") => {
+    await agent.post("/api/login").send({ email });
+    const otpRec = await prisma.otpCode.findUnique({ where: { email } });
+    if (!otpRec) throw new Error('OTP not created');
+    const res = await agent.post("/api/verify-otp").send({ email, code: otpRec.code });
+    return res.body.access_token;
 };

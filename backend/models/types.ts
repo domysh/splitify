@@ -21,6 +21,7 @@ export enum UsableBoardPermission {
 
 type UsernameType = string & tags.Pattern<"^[a-zA-Z0-9\\-\\_\\.]{5,30}$">;
 type LimitString = string & tags.MaxLength<300>
+type EmailType = string & tags.Format<"email"> & tags.MaxLength<255>;
 
 export interface Category {
   id?: string;
@@ -74,8 +75,7 @@ export interface UserSession {
 
 export interface User {
   id?: string;
-  username: UsernameType;
-  password: LimitString;
+  email: EmailType;
   role: Role;
   sessions: UserSession[];
   passkeys?: PasskeyCredential[];
@@ -111,25 +111,23 @@ export interface AddBoardForm {
 }
 
 export interface AddUser {
-  username: UsernameType;
-  password: LimitString;
+  email: EmailType;
   role: Role;
 }
 
 export interface UpdateUser {
-  username?: UsernameType;
-  password?: LimitString;
+  email?: EmailType;
   role?: Role;
 }
 
-export interface UpdateUsername {
-  username: UsernameType;
+
+export interface VerifyOtpRequest {
+  email: EmailType;
+  code: string & tags.Pattern<"^[0-9]{6}$">;
+  keepLogin?: boolean;
+  token?: LimitString; // For registration
 }
 
-export interface ChangePassword {
-  oldPassword: LimitString;
-  newPassword: LimitString;
-}
 
 export interface AddCategory {
   name: LimitString;
@@ -170,7 +168,7 @@ export interface AddTransaction {
 }
 
 export interface AddBoardAccess {
-  userId: string;
+  email: EmailType;
   permission: UsableBoardPermission;
 }
 
@@ -190,16 +188,7 @@ export interface AuthRequest extends Request {
 }
 
 export interface LoginRequest {
-  username: UsernameType;
-  password: LimitString;
-  keepLogin?: boolean;
-}
-
-export interface RegistrationRequest {
-  username: UsernameType;
-  password: LimitString;
-  token?: LimitString;
-  keepLogin?: boolean;
+  email: EmailType;
 }
 
 export interface JwtPayload {

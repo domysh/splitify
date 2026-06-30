@@ -13,8 +13,7 @@ datasource db {
 
 model User {
   id                     String        @id @default(uuid())
-  username               String        @unique
-  password               String
+  email                  String        @unique
   role                   String        @default("guest")
   passkeyPromptDismissed Boolean       @default(false)
   pinnedBoards           String[]
@@ -162,4 +161,14 @@ model Env {
   id    String @id @default(uuid())
   key   String @unique
   value String
+}
+
+model OtpCode {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  code         String
+  expiresAt    DateTime
+  nextResendAt DateTime
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
 }

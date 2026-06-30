@@ -18,20 +18,17 @@ const initAdminUser = async () => {
         const adminUser = await prisma.user.findFirst({ where: { role: Role.ADMIN } });
 
         if (!adminUser) {
-            const DEFAULT_PSW =
-                process.env.DEFAULT_PSW ||
-                crypto.randomBytes(16).toString("hex");
-            const hashedPassword = await hashPassword(DEFAULT_PSW);
-
+            if (!process.env.ADMIN_EMAIL) {
+                console.error("FATAL ERROR: Nessun admin presente nel database e variabile ADMIN_EMAIL non impostata.");
+                process.exit(1);
+            }
             await prisma.user.create({
                 data: {
-                    username: "admin",
-                    password: hashedPassword,
+                    email: process.env.ADMIN_EMAIL,
                     role: Role.ADMIN,
                 }
             });
-
-            console.log("'admin' Created! Password:", DEFAULT_PSW);
+            console.log(`Admin user created with email ${process.env.ADMIN_EMAIL}!`);
         }
     } catch (error) {
         console.error("Error creating admin user:", error);
@@ -41,6 +38,11 @@ const initAdminUser = async () => {
 prisma.$connect()
     .then(() => {
         console.log("Connected to the database");
+        if (!process.env.SMTP_HOST) {
+            console.error("FATAL ERROR: La configurazione SMTP (SMTP_HOST) non è impostata nelle variabili d'ambiente.");
+            process.exit(1);
+        }
+
         initAdminUser().then(() => {
             server.listen(PORT, () => {
                 console.log(`Server started on port ${PORT}`);

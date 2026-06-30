@@ -23,7 +23,7 @@ import {
 } from "@/utils/store";
 import { onConnectionCallbacks, socket } from "@/utils/socket";
 
-const RegisterPage = lazy(() => import("@/components/RegisterPage"));
+
 const BoardPage = lazy(() => import("@/components/board/BoardPage"));
 const Dashboard = lazy(() => import("@/components/Dashboard"));
 const AdminDashboard = lazy(() => import("@/components/admin/AdminDashboard"));
@@ -37,7 +37,7 @@ const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
 const BurgerSection = lazy(() => import("@/components/BurgerSection"));
 const UserProfilePage = lazy(() => import("@/components/user/UserProfilePage"));
 
-import { Route, Routes, useNavigate } from "react-router";
+import { Route, Routes, useNavigate, Navigate } from "react-router";
 
 export default function App() {
     const isMobile = useMobile();
@@ -253,23 +253,8 @@ export default function App() {
 
                 <AppShell.Main>
                     <Routes>
-                        <Route
-                            path="/register"
-                            element={
-                                <Container size="sm" pt="md">
-                                    <RegisterPage />
-                                </Container>
-                            }
-                        />
-
-                        <Route
-                            path="/register/:token"
-                            element={
-                                <Container size="sm" pt="md">
-                                    <RegisterPage />
-                                </Container>
-                            }
-                        />
+                        <Route path="/register" element={<Navigate to="/" replace />} />
+                        <Route path="/register/:token" element={<Navigate to="/" replace />} />
 
                         <Route
                             path="/board/:board_id/:screen?"

@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
     login,
     getMe,
-    register,
+    verifyOtp,
+    resendOtp,
     refreshToken,
     registrationInfo,
     setRegistrationInfo,
@@ -19,7 +20,7 @@ import { authenticate, hasRole } from "../middleware/auth";
 import { voidReturn as r } from "../utils";
 import {
     validateLogin,
-    validateRegistration,
+    validateVerifyOtp,
     validateSetRegistrationMode,
 } from "../middleware/validation";
 import { Role } from "../models/types";
@@ -28,8 +29,8 @@ const router = Router();
 
 router.post("/login", r(validateLogin), r(login));
 router.get("/me", authenticate, r(getMe));
-router.post("/register", r(validateRegistration), r(register));
-router.post("/register/:token", r(validateRegistration), r(register));
+router.post("/verify-otp", r(validateVerifyOtp), r(verifyOtp));
+router.post("/resend-otp", r(resendOtp));
 router.post("/token/refresh", r(refreshToken));
 router.get("/register/info", r(registrationInfo));
 router.put(

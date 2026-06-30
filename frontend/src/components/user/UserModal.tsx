@@ -1,12 +1,11 @@
 import { FormButtonBox } from "@/commons/FormButtonBox";
 import { ModalPaper } from "@/commons/ModalPaper";
 import { modalOverlayProps } from "@/styles/commonStyles";
-import { usernameValidator } from "@/utils";
 import { postRequest, putRequest } from "@/utils/net";
 import { adminUsersQuery } from "@/utils/queries";
 import { useLoading } from "@/utils/store";
 import { Role } from "@/utils/types";
-import { Modal, PasswordInput, Select, TextInput } from "@mantine/core";
+import { Modal, Select, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconCircleCheck } from "@tabler/icons-react";
@@ -31,13 +30,11 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
 
     const form = useForm({
         initialValues: {
-            username: '',
-            password: '',
+            email: '',
             role: Role.GUEST
         },
         validate: {
-            username: usernameValidator,
-            password: (value) => (mode === 'add' && !value ? 'Password richiesta' : null),
+            email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Email non valida'),
             role: (value) => (!value ? 'Ruolo richiesto' : null)
         }
     });
@@ -45,9 +42,8 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
     useEffect(() => {
         if (mode === 'edit' && users.data) {
             form.setInitialValues({
-                username: user?.username??"",
-                password: '',
-                role: (user?.role.toLowerCase()??Role.GUEST) as Role
+                email: user?.email??"",
+                role: (user?.role?.toLowerCase()??Role.GUEST) as Role
             });
         }
         if (open){
@@ -61,12 +57,9 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
         setLoading(true);
 
         const payload = {
-            ...values,
-            
-            ...(mode === 'edit' && !values.password && { password: undefined })
+            ...values
         };
 
-        
         const request = mode === 'add' 
             ? postRequest('users', { body: payload })
             : putRequest(`users/${userId}`, { body: payload });
@@ -82,7 +75,7 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
                     icon: <IconCircleCheck size={20} />
                 });
 
-                
+                users.refetch();
                 onClose();
             })
             .catch(error => {
@@ -109,18 +102,10 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
             <ModalPaper>
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     <TextInput
-                        label="Username"
-                        placeholder="Inserisci username"
+                        label="Email"
+                        placeholder="Inserisci email"
                         required
-                        {...form.getInputProps('username')}
-                    />
-                    
-                    <PasswordInput
-                        mt="md"
-                        label={mode === 'add' ? "Password" : "Nuova password (lascia vuoto per non modificare)"}
-                        placeholder={mode === 'add' ? "Inserisci password" : "Inserisci nuova password"}
-                        required={mode === 'add'}
-                        {...form.getInputProps('password')}
+                        {...form.getInputProps('email')}
                     />
                     
                     <Select

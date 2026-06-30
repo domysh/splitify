@@ -9,4 +9,5 @@ router.use(hasRole(Role.ADMIN));
 
 router.get("/stats", r(getStats));
 
+
 export default router;

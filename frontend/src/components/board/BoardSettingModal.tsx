@@ -27,15 +27,15 @@ export interface BoardSettingsModalProps {
 export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalProps) => {
     const { setLoading } = useLoading()
     const queryClient = useQueryClient()
-    const [confirmDelete, setConfirmDelete] = useState(false)
     const location = useNavigate()
     const [isDirty, setIsDirty] = useState(false);
     const [activeTab, setActiveTab] = useState<string>("general");
     const [shareModalOpen, setShareModalOpen] = useState(false);
-    const [confirmTransfer, setConfirmTransfer] = useState<{ userId: string, username: string } | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [confirmTransfer, setConfirmTransfer] = useState<{ userId: string, email: string } | null>(null);
     const [loadingAccess, setLoadingAccess] = useState<string | null>(null);
     const [editPermissionModal, setEditPermissionModal] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<{ userId: string, username: string, permission: BoardPermission } | null>(null);
+    const [selectedUser, setSelectedUser] = useState<{ userId: string, email: string, permission: BoardPermission } | null>(null);
 
 
     const form = useForm({
@@ -166,7 +166,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
 
             notifications.show({
                 title: "Proprietà trasferita",
-                message: `La proprietà della board è stata trasferita a ${confirmTransfer.username}`,
+                message: `La proprietà della board è stata trasferita a ${confirmTransfer.email}`,
                 color: "green",
                 icon: <IconCircleCheck size={18} />
             });
@@ -186,8 +186,8 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
     }, [board.id, confirmTransfer, onClose, setLoading, queryClient]);
 
 
-    const openEditPermissionModal = useCallback((userId: string, username: string, permission: BoardPermission) => {
-        setSelectedUser({ userId, username, permission });
+    const openEditPermissionModal = useCallback((userId: string, email: string, permission: BoardPermission) => {
+        setSelectedUser({ userId, email, permission });
         setEditPermissionModal(true);
     }, []);
 
@@ -286,7 +286,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                                         </Table.Tr>}
                                         {accessQuery.data.map((access) => (
                                             <Table.Tr key={access.id}>
-                                                <Table.Td>{access.username}</Table.Td>
+                                                <Table.Td>{access.email}</Table.Td>
                                                 <Table.Td>
                                                     <Badge
                                                         color={
@@ -295,7 +295,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                                                                 : "blue"
                                                         }
                                                         style={{ cursor: "pointer" }}
-                                                        onClick={() => openEditPermissionModal(access.userId, access.username, access.permission)}
+                                                        onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
                                                     >
                                                         {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
                                                     </Badge>
@@ -307,7 +307,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                                                             color="blue"
                                                             onClick={() => setConfirmTransfer({
                                                                 userId: access.userId,
-                                                                username: access.username
+                                                                email: access.email
                                                             })}
                                                             title="Trasferisci proprietà"
                                                         >
@@ -369,7 +369,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
             message={
                 <Box>
                     <Text size="lg" mb="md">
-                        Stai per trasferire la proprietà della board a <b>{confirmTransfer?.username}</b>
+                        Stai per trasferire la proprietà della board a <b>{confirmTransfer?.email}</b>
                     </Text>
                     <Text c="yellow" size="sm" mb="sm">
                         Non sarai più il proprietario di questa board e avrai solo permessi di modifica.
@@ -392,7 +392,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
             board={board}
             mode={editPermissionModal ? "update" : "add"}
             initialUserId={selectedUser?.userId}
-            initialUsername={selectedUser?.username}
+            initialEmail={selectedUser?.email}
             initialPermission={selectedUser?.permission}
         />
     </>

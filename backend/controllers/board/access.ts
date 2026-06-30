@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AddBoardAccess, AuthRequest, BoardPermission, Role, TransferBoardOwnership } from '../../models/types';
 import { prisma } from '../../utils/prisma';
-import { emitBoardUpdate, emitUserUpdate } from '../../utils/socket';
+import { emitBoardUpdate, emitUserUpdate, emitAdminUpdate } from '../../utils/socket';
 import { getAuthenticatedBoard } from '../../utils';
 
 export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
@@ -14,13 +14,13 @@ export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
 
     const accesses = await prisma.boardAccess.findMany({
       where: { boardId: id },
-      include: { user: { select: { username: true } } }
+      include: { user: { select: { email: true } } }
     });
 
     const userDetails = accesses.map(acc => ({
       userId: acc.userId,
       permission: acc.permission,
-      username: acc.user.username
+      username: acc.user.email
     }));
 
     res.json(userDetails);
@@ -40,17 +40,24 @@ export const addBoardAccess = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Board not found' });
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id: accessData.userId } });
+    const lowercaseEmail = accessData.email.toLowerCase();
+    let targetUser = await prisma.user.findFirst({ where: { email: lowercaseEmail } });
     if (!targetUser) {
-      return res.status(404).json({ message: 'Target user not found' });
+      targetUser = await prisma.user.create({
+        data: {
+          email: lowercaseEmail,
+          role: Role.GUEST
+        }
+      });
+      emitAdminUpdate(['users']);
     }
 
-    if (board.creatorId === accessData.userId) {
+    if (board.creatorId === targetUser.id) {
       return res.status(400).json({ message: 'Cannot add access for the board owner' });
     }
 
     const existingAccess = await prisma.boardAccess.findFirst({
-      where: { userId: accessData.userId, boardId: id }
+      where: { userId: targetUser.id, boardId: id }
     });
     
     if (existingAccess) {
@@ -59,13 +66,13 @@ export const addBoardAccess = async (req: AuthRequest, res: Response) => {
 
     const access = await prisma.boardAccess.create({
       data: {
-        userId: accessData.userId,
+        userId: targetUser.id,
         boardId: id,
         permission: accessData.permission
       }
     });
 
-    emitUserUpdate(accessData.userId, ['boards', `boards/${id}`]);
+    emitUserUpdate(targetUser.id, ['boards', `boards/${id}`]);
     emitBoardUpdate(id);
     res.status(201).json({ id: access.id });
   } catch (err) {
