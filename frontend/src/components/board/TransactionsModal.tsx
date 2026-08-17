@@ -22,6 +22,7 @@ import { ResponsivePager } from "@/commons/ResponsivePager";
 import { postRequest } from "@/utils/net";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
+import { useMobile } from "@/utils/hooks";
 
 
 const ITEMS_PER_PAGE = 10;
@@ -53,6 +54,7 @@ export const TransactionsModal = ({ board, open, onClose }: TransactionsModalPro
   const transactionsQuery_ = transactionsQuery(board.id);
   const [currentPage, setCurrentPage] = useState(1);
   const { canEdit } = usePermissions(board);
+  const isMobile = useMobile();
 
   useEffect(() => {
     if (open) return
@@ -150,7 +152,8 @@ export const TransactionsModal = ({ board, open, onClose }: TransactionsModalPro
         size="lg"
         padding="md"
         radius="md"
-        centered
+        centered={!isMobile}
+        fullScreen={isMobile}
         overlayProps={modalOverlayOptions}
         styles={modalStyles}
       >
@@ -181,7 +184,7 @@ export const TransactionsModal = ({ board, open, onClose }: TransactionsModalPro
           </Paper>
         ) : (
           <Stack gap="md">
-            <ScrollArea h={400} offsetScrollbars>
+            <ScrollArea h={isMobile ? "calc(100vh - 220px)" : 400} offsetScrollbars>
               <Timeline active={paginatedTransactions.length} bulletSize={24} lineWidth={2}>
                 {paginatedTransactions.map((transaction) => {
                   const fromName = getMemberName(transaction.fromMemberId);
@@ -270,10 +273,10 @@ export const TransactionsModal = ({ board, open, onClose }: TransactionsModalPro
                                 <ActionIcon
                                   color="red"
                                   variant="subtle"
-                                  size="sm"
+                                  size="lg"
                                   onClick={() => handleCancelTransaction(transaction)}
                                 >
-                                  <IconTrash size={16} />
+                                  <IconTrash size={18} />
                                 </ActionIcon>
                               </Tooltip>
                             )}
@@ -337,10 +340,10 @@ export const TransactionsModal = ({ board, open, onClose }: TransactionsModalPro
                                 <ActionIcon
                                   color="red"
                                   variant="subtle"
-                                  size="sm"
+                                  size="lg"
                                   onClick={() => handleCancelTransaction(transaction)}
                                 >
-                                  <IconTrash size={16} />
+                                  <IconTrash size={18} />
                                 </ActionIcon>
                               </Tooltip>
                             )}

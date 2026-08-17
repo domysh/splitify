@@ -1,6 +1,6 @@
 import { deleteRequest, putRequest } from "@/utils/net";
 import { board } from "@/utils/types";
-import { Button, Group, Modal, Space, TextInput, Title, Text, Box, Divider, Tabs, Table, ActionIcon, Badge, Loader } from "@mantine/core";
+import { Button, Group, Modal, Space, TextInput, Title, Text, Box, Divider, Tabs, Table, ActionIcon, Badge, Loader, Card, Stack, ScrollArea } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect } from "react";
 import { YesOrNoModal } from "@/commons/YesOrNoModal";
 import { useNavigate } from "react-router";
 import { DeleteButton } from "@/commons/Buttons";
-import { IconSettings, IconCircleCheck, IconUserPlus, IconUserMinus, IconExchange, IconUsers } from "@tabler/icons-react";
+import { IconSettings, IconCircleCheck, IconUserPlus, IconUserMinus, IconExchange, IconUsers, IconEdit } from "@tabler/icons-react";
 import { boardAccessQuery } from "@/utils/queries";
 import { BoardPermission } from "@/utils/types";
 import { BoardAccessModal } from "@/components/board/BoardAccessModal";
@@ -17,6 +17,7 @@ import { inputStyles, modalOverlayProps, modalTransitionProps } from "@/styles/c
 import { FormButtonBox } from "@/commons/FormButtonBox";
 import { PublicSwitch } from "@/commons/PublicSwitch";
 import { ModalPaper } from "@/commons/ModalPaper";
+import { useMobile } from "@/utils/hooks";
 
 export interface BoardSettingsModalProps {
     open: boolean;
@@ -26,6 +27,7 @@ export interface BoardSettingsModalProps {
 
 export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalProps) => {
     const { setLoading } = useLoading()
+    const isMobile = useMobile()
     const queryClient = useQueryClient()
     const location = useNavigate()
     const [isDirty, setIsDirty] = useState(false);
@@ -202,7 +204,8 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                     <Text fw={600}>Impostazioni Board</Text>
                 </Group>
             }
-            centered
+            centered={!isMobile}
+            fullScreen={isMobile}
             size="md"
             overlayProps={modalOverlayProps}
             transitionProps={modalTransitionProps}
@@ -267,67 +270,125 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                                 <Text c="red" size="sm">
                                     Errore nel caricamento degli accessi
                                 </Text>
+                            ) : accessQuery.data && accessQuery.data.length === 0 ? (
+                                <Text c="dimmed" ta="center" p="md">
+                                    Non ci sono accessi per questa board
+                                </Text>
                             ) : accessQuery.data && (
-                                <Table withTableBorder withColumnBorders>
-                                    <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>Utente</Table.Th>
-                                            <Table.Th>Permesso</Table.Th>
-                                            <Table.Th style={{ width: '100px' }}>Azioni</Table.Th>
-                                        </Table.Tr>
-                                    </Table.Thead>
-                                    <Table.Tbody>
-                                        {(accessQuery.data && accessQuery.data.length == 0) && <Table.Tr key="empty">
-                                            <Table.Td colSpan={3}>
-                                                <Text c="dimmed" ta="center" p="md">
-                                                    Non ci sono accessi per questa board
-                                                </Text>
-                                            </Table.Td>
-                                        </Table.Tr>}
+                                isMobile ? (
+                                    <Stack gap="sm">
                                         {accessQuery.data.map((access) => (
-                                            <Table.Tr key={access.id}>
-                                                <Table.Td>{access.email}</Table.Td>
-                                                <Table.Td>
-                                                    <Badge
-                                                        color={
-                                                            access.permission === BoardPermission.EDITOR
-                                                                ? "green"
-                                                                : "blue"
-                                                        }
-                                                        style={{ cursor: "pointer" }}
-                                                        onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
-                                                    >
-                                                        {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
-                                                    </Badge>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Group gap="xs">
+                                            <Card key={access.id} withBorder p="md">
+                                                <Group justify="space-between" wrap="nowrap">
+                                                    <Box style={{ overflow: 'hidden' }}>
+                                                        <Text fw={500} truncate>{access.email}</Text>
+                                                        <Badge
+                                                            mt={4}
+                                                            color={access.permission === BoardPermission.EDITOR ? "green" : "blue"}
+                                                        >
+                                                            {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
+                                                        </Badge>
+                                                    </Box>
+                                                    <Group gap="xs" wrap="nowrap">
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="indigo"
+                                                            size="lg"
+                                                            onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
+                                                            title="Modifica permesso"
+                                                        >
+                                                            <IconEdit size={20} />
+                                                        </ActionIcon>
                                                         <ActionIcon
                                                             variant="subtle"
                                                             color="blue"
+                                                            size="lg"
                                                             onClick={() => setConfirmTransfer({
                                                                 userId: access.userId,
                                                                 email: access.email
                                                             })}
                                                             title="Trasferisci proprietà"
                                                         >
-                                                            <IconExchange size={16} />
+                                                            <IconExchange size={20} />
                                                         </ActionIcon>
                                                         <ActionIcon
                                                             variant="subtle"
                                                             color="red"
+                                                            size="lg"
                                                             loading={loadingAccess === access.userId}
                                                             onClick={() => handleRemoveAccess(access.userId)}
                                                             title="Rimuovi accesso"
                                                         >
-                                                            <IconUserMinus size={16} />
+                                                            <IconUserMinus size={20} />
                                                         </ActionIcon>
                                                     </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
+                                                </Group>
+                                            </Card>
                                         ))}
-                                    </Table.Tbody>
-                                </Table>
+                                    </Stack>
+                                ) : (
+                                    <ScrollArea>
+                                        <Table withTableBorder withColumnBorders miw={480}>
+                                            <Table.Thead>
+                                                <Table.Tr>
+                                                    <Table.Th>Utente</Table.Th>
+                                                    <Table.Th>Permesso</Table.Th>
+                                                    <Table.Th style={{ width: '130px' }}>Azioni</Table.Th>
+                                                </Table.Tr>
+                                            </Table.Thead>
+                                            <Table.Tbody>
+                                                {accessQuery.data.map((access) => (
+                                                    <Table.Tr key={access.id}>
+                                                        <Table.Td>{access.email}</Table.Td>
+                                                        <Table.Td>
+                                                            <Badge
+                                                                color={
+                                                                    access.permission === BoardPermission.EDITOR
+                                                                        ? "green"
+                                                                        : "blue"
+                                                                }
+                                                            >
+                                                                {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
+                                                            </Badge>
+                                                        </Table.Td>
+                                                        <Table.Td>
+                                                            <Group gap="xs">
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    color="indigo"
+                                                                    onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
+                                                                    title="Modifica permesso"
+                                                                >
+                                                                    <IconEdit size={16} />
+                                                                </ActionIcon>
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    color="blue"
+                                                                    onClick={() => setConfirmTransfer({
+                                                                        userId: access.userId,
+                                                                        email: access.email
+                                                                    })}
+                                                                    title="Trasferisci proprietà"
+                                                                >
+                                                                    <IconExchange size={16} />
+                                                                </ActionIcon>
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    color="red"
+                                                                    loading={loadingAccess === access.userId}
+                                                                    onClick={() => handleRemoveAccess(access.userId)}
+                                                                    title="Rimuovi accesso"
+                                                                >
+                                                                    <IconUserMinus size={16} />
+                                                                </ActionIcon>
+                                                            </Group>
+                                                        </Table.Td>
+                                                    </Table.Tr>
+                                                ))}
+                                            </Table.Tbody>
+                                        </Table>
+                                    </ScrollArea>
+                                )
                             )}
                             <Group display="flex" justify="flex-end" mt="md">
                                 <Button

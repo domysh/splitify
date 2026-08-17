@@ -18,7 +18,7 @@ import {
     Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { notifications } from "@mantine/notifications";
 import { postRequest, getRequest, putRequest } from "@/utils/net";
 import { IconLogin, IconShield, IconFingerprint, IconArrowLeft, IconMailOpened, IconRefresh } from "@tabler/icons-react";
@@ -76,7 +76,11 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
         },
     });
 
+    const refreshInFlight = useRef(false);
+
     const performTokenRefresh = useCallback(() => {
+        if (refreshInFlight.current) return;
+        refreshInFlight.current = true;
         postRequest("token/refresh")
             .then((res) => {
                 if (res.access_token) {
@@ -89,30 +93,44 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             .catch(() => {
                 setToken(null);
                 setHeader(null);
+            })
+            .finally(() => {
+                refreshInFlight.current = false;
             });
     }, [setHeader, setToken]);
 
-    // Token refresher
+    const checkAndRefreshToken = useCallback(() => {
+        const sessionInfo = tokenInfo();
+        if (!sessionInfo) return;
+        const remainingTime = sessionInfo.exp - new Date().getTime() / 1000;
+        if (remainingTime < 0) {
+            setToken(null);
+            setHeader(null);
+            return;
+        }
+        const tokenDuration = sessionInfo.exp - sessionInfo.iat;
+        const waitForRefresh = remainingTime - tokenDuration * 0.09;
+        if (waitForRefresh <= 0) {
+            performTokenRefresh();
+        }
+    }, [tokenInfo, performTokenRefresh, setHeader, setToken]);
+
+    // Token refresher: polls periodically, and checks immediately when the
+    // tab regains focus (mobile browsers throttle setInterval in background,
+    // so app-switching can otherwise leave the token to expire unnoticed).
     useEffect(() => {
-        const interval = setInterval(() => {
-            const sessionInfo = tokenInfo();
-            if (!sessionInfo) return;
-            const remainingTime = sessionInfo.exp - new Date().getTime() / 1000;
-            if (remainingTime < 0) {
-                setToken(null);
-                setHeader(null);
-                return;
+        const interval = setInterval(checkAndRefreshToken, 10000);
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkAndRefreshToken();
             }
-            const tokenDuration = sessionInfo.exp - sessionInfo.iat;
-            const waitForRefresh = remainingTime - tokenDuration * 0.09;
-            if (waitForRefresh <= 0) {
-                performTokenRefresh();
-            }
-        }, 10000);
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
         return () => {
             clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
         };
-    }, [tokenInfo, performTokenRefresh, setHeader, setToken]);
+    }, [checkAndRefreshToken]);
 
     useEffect(() => {
         if (!token) {

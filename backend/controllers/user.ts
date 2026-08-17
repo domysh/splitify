@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AddUser, AuthRequest, Role, UpdateUser } from '../models/types';
-import { emitAdminUpdate, emitUserUpdate } from '../utils/socket';
+import { emitAdminUpdate, emitUserUpdate, emitBoardUpdate } from '../utils/socket';
 import { deleteBoardAction } from './board/board';
 
 export const getUsers = async (req: AuthRequest, res: Response) => {
@@ -166,8 +166,11 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     const ownedBoards = await prisma.board.findMany({ where: { creatorId: userId } });
     await Promise.all(ownedBoards.map((board: any) => deleteBoardAction(board.id)));
 
+    const accesses = await prisma.boardAccess.findMany({ where: { userId } });
+
     await prisma.user.delete({ where: { id: userId } });
     
+    accesses.forEach((access) => emitBoardUpdate(access.boardId));
     emitAdminUpdate(['users', `users/${userId}`, 'stats']);
     emitUserUpdate(userId, ['me']);
     res.json({ id: userId });

@@ -20,7 +20,7 @@ export const getBoardAccesses = async (req: AuthRequest, res: Response) => {
     const userDetails = accesses.map(acc => ({
       userId: acc.userId,
       permission: acc.permission,
-      username: acc.user.email
+      email: acc.user.email
     }));
 
     res.json(userDetails);

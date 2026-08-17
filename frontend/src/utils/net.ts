@@ -1,4 +1,5 @@
 import { useAuth } from "./store"
+import { notifications } from "@mantine/notifications"
 
 export const DEV_IP_BACKEND = "127.0.0.1:8080"
 
@@ -31,8 +32,14 @@ export const getLink = (url:string, params?: {[p:string]:any}): string => {
 
 export const elaborateJsonRequest = (res: Response) => {
     if (res.status === 401){
-        useAuth.getState().logout()
-        window.location.reload() // Unauthorized
+        if (useAuth.getState().isAuthenticated){
+            useAuth.getState().logout()
+            notifications.show({
+                title: "Sessione scaduta",
+                message: "Effettua di nuovo l'accesso per continuare",
+                color: "yellow"
+            })
+        }
     }
     if (res.status === 403){
         return res.json().then( res => {
