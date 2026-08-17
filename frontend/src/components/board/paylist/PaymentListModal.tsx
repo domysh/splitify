@@ -10,6 +10,7 @@ import { modalOverlayOptions, modalStyles } from "@/styles/commonStyles";
 import { PaymentItem } from "./PaymentItem";
 import { ConfirmationPaymentModalContent } from "./ConfirmationPaymentModalContent";
 import { formatPrice } from "@/utils/formatters";
+import { useMobile } from "@/utils/hooks";
 
 interface PaymentListModalProps {
   board: board;
@@ -121,6 +122,7 @@ const PaymentHeader = ({ paymentCount }: { paymentCount: number }) => (
 
 
 export const PaymentListModal = ({ board, open, onClose }: PaymentListModalProps) => {
+  const isMobile = useMobile();
   const paylist = useCalculatePaylist(board);
   const [processing, setProcessing] = useState<number | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<{index: number, fromName: string, toName: string, amount: number} | null>(null);
@@ -187,7 +189,8 @@ export const PaymentListModal = ({ board, open, onClose }: PaymentListModalProps
         size='95%'
         padding='sm'
         radius="md"
-        centered
+        centered={!isMobile}
+        fullScreen={isMobile}
         overlayProps={modalOverlayOptions}
         styles={modalStyles}
       >

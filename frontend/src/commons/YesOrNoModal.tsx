@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { modalOverlayProps, modalTransitionProps } from "@/styles/commonStyles";
 import { FormButtonBox } from "./FormButtonBox";
 import { ModalPaper } from "./ModalPaper";
+import { useMobile } from "@/utils/hooks";
 
 export interface YesOrNoModalProps {
     open: boolean;
@@ -33,7 +34,8 @@ export const YesOrNoModal = ({
     children
 }: YesOrNoModalProps) => {
     const [animateIcon, setAnimateIcon] = useState(false);
-    
+    const isMobile = useMobile();
+
     useEffect(() => { 
         if (open) {
             const timer = setTimeout(() => setAnimateIcon(true), 100);
@@ -54,8 +56,8 @@ export const YesOrNoModal = ({
                     {typeof title === 'string' ? <Text fw={600}>{title}</Text> : title}
                 </Group>
             }
-            centered 
-            size="sm"
+            centered
+            size={isMobile ? "95%" : "sm"}
             overlayProps={modalOverlayProps}
             transitionProps={modalTransitionProps}
         >

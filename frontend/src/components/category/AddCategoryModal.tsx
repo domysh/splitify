@@ -9,6 +9,7 @@ import { useLoading } from "@/utils/store";
 import { inputStyles, modalOverlayProps, modalTransitionProps } from "@/styles/commonStyles";
 import { FormButtonBox } from "@/commons/FormButtonBox";
 import { ModalPaper } from "@/commons/ModalPaper";
+import { useMobile } from "@/utils/hooks";
 
 interface AddCategoryModalProps {
     open: boolean;
@@ -23,6 +24,7 @@ interface CategoryFormValues {
 
 export const AddCategoryModal = ({ open, onClose, board, closeOnEnd }: AddCategoryModalProps) => {
     const { setLoading } = useLoading();
+    const isMobile = useMobile();
     const formAdd = useForm<CategoryFormValues>({
         initialValues: {
             name: "",
@@ -78,7 +80,7 @@ export const AddCategoryModal = ({ open, onClose, board, closeOnEnd }: AddCatego
                 </Group>
             }
             centered
-            size="md"
+            size={isMobile ? "95%" : "md"}
             overlayProps={modalOverlayProps}
             transitionProps={modalTransitionProps}
         >

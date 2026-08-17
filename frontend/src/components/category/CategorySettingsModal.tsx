@@ -8,6 +8,7 @@ import { IconCategory, IconCircleCheck } from "@tabler/icons-react";
 import { BottomEditControl } from "@/commons/BottomEditControl";
 import { AddCategoryModal } from '@/components/category/AddCategoryModal';
 import { CategoryRow, CategoryWithOrder, CategoryEdits, ITEMS_PER_PAGE } from '@/components/category/CategoryRow';
+import { CategoryMobileCard } from '@/components/category/CategoryMobileCard';
 import { useLoading } from "@/utils/store";
 import { modalOverlayProps } from "@/styles/commonStyles";
 import { ModalPaper } from "@/commons/ModalPaper";
@@ -271,6 +272,28 @@ export const CategorySettingsModal = ({ open, onClose, board }: CategorySettings
         [paginatedCategories, animateTable, moveUp, moveDown, handleNameChange, edits, board, orderedCategories.length, currentPage]
     );
 
+    const mobileCards = useMemo(() =>
+        paginatedCategories.map((cat, index) => {
+            const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
+
+            return (
+                <CategoryMobileCard
+                    key={cat.id}
+                    category={cat}
+                    index={globalIndex}
+                    animateTable={animateTable}
+                    moveUp={moveUp}
+                    moveDown={moveDown}
+                    handleNameChange={handleNameChange}
+                    edits={edits}
+                    board={board}
+                    totalItems={orderedCategories.length}
+                />
+            );
+        }),
+        [paginatedCategories, animateTable, moveUp, moveDown, handleNameChange, edits, board, orderedCategories.length, currentPage]
+    );
+
     return <>
     <Modal 
         opened={open} 
@@ -301,32 +324,30 @@ export const CategorySettingsModal = ({ open, onClose, board }: CategorySettings
                 loading={savingChanges}
             />
             <Space h="xl" />
-            <ScrollArea className="responsive-table-container" style={{ overflowX: 'auto' }}>
-                <Table verticalSpacing="md" highlightOnHover={false}>
-                    <Table.Tbody>
-                        {orderedCategories.length === 0 ? (
-                            <Table.Tr>
-                                <Table.Td colSpan={5} style={{ textAlign: 'center', padding: '40px 0' }}>
-                                    <Box className="center-flex-col">
-                                        <IconCategory size={40} style={{ opacity: 0.5, marginBottom: 15 }} />
-                                        <Text size="lg" fw={500} c="dimmed">
-                                            Nessuna categoria disponibile
-                                        </Text>
-                                        <Space h="md" />
-                                        <Button
-                                            variant="light"
-                                            leftSection={<IconCategory size={16} />}
-                                            onClick={() => setOpenAddCategory(true)}
-                                        >
-                                            Aggiungi la prima categoria
-                                        </Button>
-                                    </Box>
-                                </Table.Td>
-                            </Table.Tr>
-                        ) : rows}
-                    </Table.Tbody>
-                </Table>
-            </ScrollArea>
+            {orderedCategories.length === 0 ? (
+                <Box className="center-flex-col" py="xl">
+                    <IconCategory size={40} style={{ opacity: 0.5, marginBottom: 15 }} />
+                    <Text size="lg" fw={500} c="dimmed">
+                        Nessuna categoria disponibile
+                    </Text>
+                    <Space h="md" />
+                    <Button
+                        variant="light"
+                        leftSection={<IconCategory size={16} />}
+                        onClick={() => setOpenAddCategory(true)}
+                    >
+                        Aggiungi la prima categoria
+                    </Button>
+                </Box>
+            ) : isMobile ? (
+                <Box>{mobileCards}</Box>
+            ) : (
+                <ScrollArea className="responsive-table-container" style={{ overflowX: 'auto' }}>
+                    <Table verticalSpacing="md" highlightOnHover={false}>
+                        <Table.Tbody>{rows}</Table.Tbody>
+                    </Table>
+                </ScrollArea>
+            )}
             <Space h="md" />
             {orderedCategories.length > ITEMS_PER_PAGE &&
                 <ResponsivePager

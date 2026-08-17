@@ -1,5 +1,5 @@
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
-import { useCurrentUser } from "@/utils/hooks";
+import { useCurrentUser, useSmallScreen } from "@/utils/hooks";
 import { Avatar, Badge, Box, Button, Group, Paper, Text } from "@mantine/core";
 import { IconArrowRight, IconExchange } from "@tabler/icons-react";
 
@@ -19,6 +19,7 @@ export const PaymentItem = (
     }: PaymentItemProps
 ) => {
   const currentUser = useCurrentUser();
+  const isSmallScreen = useSmallScreen();
   return <Paper
     key={index}
     p={{ base: 'xs', sm: 'md' }}
@@ -84,7 +85,7 @@ export const PaymentItem = (
         mt={{ base: currentUser ? 'xs' : 0, xs: 0 }}
         w={{ base: currentUser ? '100%' : 'auto', xs: 'auto' }}
         style={{ 
-          justifyContent: currentUser && window.innerWidth < 576 ? 'space-between' : 'flex-end'
+          justifyContent: currentUser && isSmallScreen ? 'space-between' : 'flex-end'
         }}
       >
         <Badge

@@ -1,5 +1,5 @@
 import { postRequest } from "@/utils/net";
-import { Avatar, Badge, Box, Divider, Group, Modal, MultiSelect, Paper, Select, Space, Text, TextInput } from "@mantine/core";
+import { Avatar, Badge, Box, Divider, Group, Modal, MultiSelect, Paper, Select, Space, Stack, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useMemo, useState } from "react";
@@ -30,6 +30,7 @@ export interface ProductFormValues {
 export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProductModalProps) => {
     const { setLoading } = useLoading();
     const isMobile = useMobile()
+    const FormLayout = isMobile ? Stack : Group
     const [memberSearchValue, setMemberSearchValue] = useState('');
 
     const formAdd = useForm<ProductFormValues>({
@@ -145,8 +146,8 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                 }}
             >
                 <form onSubmit={formAdd.onSubmit(handleSubmit)}>
-                    <Group align="flex-start" gap={24}>
-                        <Box style={{ flex: 1 }}>
+                    <FormLayout align="flex-start" gap={24}>
+                        <Box style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
                             <TextInput
                                 label={<Text fw={500} size="sm" mb={5} style={{ letterSpacing: '0.3px' }}>Nome Spesa <span style={{ color: "#ff6b6b" }}>*</span></Text>}
                                 placeholder="Inserisci il nome della spesa"
@@ -254,7 +255,7 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
                                 </>
                             )}
                         </Paper>
-                    </Group>
+                    </FormLayout>
                     <FormButtonBox
                         icon={<IconShoppingBag size={16} />}
                         onCancel={onClose}

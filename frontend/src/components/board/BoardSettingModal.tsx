@@ -1,6 +1,6 @@
 import { deleteRequest, putRequest } from "@/utils/net";
 import { board } from "@/utils/types";
-import { Button, Group, Modal, Space, TextInput, Title, Text, Box, Divider, Tabs, Table, ActionIcon, Badge, Loader, Card, Stack, ScrollArea } from "@mantine/core";
+import { Button, Group, Modal, Space, TextInput, Title, Text, Box, Divider, Tabs, ActionIcon, Badge, Loader, Card, Stack } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
@@ -206,7 +206,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
             }
             centered={!isMobile}
             fullScreen={isMobile}
-            size="md"
+            size={activeTab === "access" ? "xl" : "md"}
             overlayProps={modalOverlayProps}
             transitionProps={modalTransitionProps}
         >
@@ -275,120 +275,58 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                                     Non ci sono accessi per questa board
                                 </Text>
                             ) : accessQuery.data && (
-                                isMobile ? (
-                                    <Stack gap="sm">
-                                        {accessQuery.data.map((access) => (
-                                            <Card key={access.id} withBorder p="md">
-                                                <Group justify="space-between" wrap="nowrap">
-                                                    <Box style={{ overflow: 'hidden' }}>
-                                                        <Text fw={500} truncate>{access.email}</Text>
-                                                        <Badge
-                                                            mt={4}
-                                                            color={access.permission === BoardPermission.EDITOR ? "green" : "blue"}
-                                                        >
-                                                            {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
-                                                        </Badge>
-                                                    </Box>
-                                                    <Group gap="xs" wrap="nowrap">
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="indigo"
-                                                            size="lg"
-                                                            onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
-                                                            title="Modifica permesso"
-                                                        >
-                                                            <IconEdit size={20} />
-                                                        </ActionIcon>
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="blue"
-                                                            size="lg"
-                                                            onClick={() => setConfirmTransfer({
-                                                                userId: access.userId,
-                                                                email: access.email
-                                                            })}
-                                                            title="Trasferisci proprietà"
-                                                        >
-                                                            <IconExchange size={20} />
-                                                        </ActionIcon>
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="red"
-                                                            size="lg"
-                                                            loading={loadingAccess === access.userId}
-                                                            onClick={() => handleRemoveAccess(access.userId)}
-                                                            title="Rimuovi accesso"
-                                                        >
-                                                            <IconUserMinus size={20} />
-                                                        </ActionIcon>
-                                                    </Group>
+                                <Stack gap="sm">
+                                    {accessQuery.data.map((access) => (
+                                        <Card key={access.id} withBorder p="md">
+                                            <Group justify="space-between" align="center" wrap="nowrap">
+                                                <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                                                    <Text fw={500} truncate="end" style={{ minWidth: 0 }}>
+                                                        {access.email}
+                                                    </Text>
+                                                    <Badge
+                                                        style={{ flexShrink: 0 }}
+                                                        color={access.permission === BoardPermission.EDITOR ? "green" : "blue"}
+                                                    >
+                                                        {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
+                                                    </Badge>
                                                 </Group>
-                                            </Card>
-                                        ))}
-                                    </Stack>
-                                ) : (
-                                    <ScrollArea>
-                                        <Table withTableBorder withColumnBorders miw={480}>
-                                            <Table.Thead>
-                                                <Table.Tr>
-                                                    <Table.Th>Utente</Table.Th>
-                                                    <Table.Th>Permesso</Table.Th>
-                                                    <Table.Th style={{ width: '130px' }}>Azioni</Table.Th>
-                                                </Table.Tr>
-                                            </Table.Thead>
-                                            <Table.Tbody>
-                                                {accessQuery.data.map((access) => (
-                                                    <Table.Tr key={access.id}>
-                                                        <Table.Td>{access.email}</Table.Td>
-                                                        <Table.Td>
-                                                            <Badge
-                                                                color={
-                                                                    access.permission === BoardPermission.EDITOR
-                                                                        ? "green"
-                                                                        : "blue"
-                                                                }
-                                                            >
-                                                                {access.permission === BoardPermission.EDITOR ? "Editor" : "Visualizzatore"}
-                                                            </Badge>
-                                                        </Table.Td>
-                                                        <Table.Td>
-                                                            <Group gap="xs">
-                                                                <ActionIcon
-                                                                    variant="subtle"
-                                                                    color="indigo"
-                                                                    onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
-                                                                    title="Modifica permesso"
-                                                                >
-                                                                    <IconEdit size={16} />
-                                                                </ActionIcon>
-                                                                <ActionIcon
-                                                                    variant="subtle"
-                                                                    color="blue"
-                                                                    onClick={() => setConfirmTransfer({
-                                                                        userId: access.userId,
-                                                                        email: access.email
-                                                                    })}
-                                                                    title="Trasferisci proprietà"
-                                                                >
-                                                                    <IconExchange size={16} />
-                                                                </ActionIcon>
-                                                                <ActionIcon
-                                                                    variant="subtle"
-                                                                    color="red"
-                                                                    loading={loadingAccess === access.userId}
-                                                                    onClick={() => handleRemoveAccess(access.userId)}
-                                                                    title="Rimuovi accesso"
-                                                                >
-                                                                    <IconUserMinus size={16} />
-                                                                </ActionIcon>
-                                                            </Group>
-                                                        </Table.Td>
-                                                    </Table.Tr>
-                                                ))}
-                                            </Table.Tbody>
-                                        </Table>
-                                    </ScrollArea>
-                                )
+                                                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="indigo"
+                                                        size="lg"
+                                                        onClick={() => openEditPermissionModal(access.userId, access.email, access.permission)}
+                                                        title="Modifica permesso"
+                                                    >
+                                                        <IconEdit size={20} />
+                                                    </ActionIcon>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="blue"
+                                                        size="lg"
+                                                        onClick={() => setConfirmTransfer({
+                                                            userId: access.userId,
+                                                            email: access.email
+                                                        })}
+                                                        title="Trasferisci proprietà"
+                                                    >
+                                                        <IconExchange size={20} />
+                                                    </ActionIcon>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="red"
+                                                        size="lg"
+                                                        loading={loadingAccess === access.userId}
+                                                        onClick={() => handleRemoveAccess(access.userId)}
+                                                        title="Rimuovi accesso"
+                                                    >
+                                                        <IconUserMinus size={20} />
+                                                    </ActionIcon>
+                                                </Group>
+                                            </Group>
+                                        </Card>
+                                    ))}
+                                </Stack>
                             )}
                             <Group display="flex" justify="flex-end" mt="md">
                                 <Button

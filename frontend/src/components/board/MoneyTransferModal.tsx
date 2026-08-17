@@ -1,5 +1,5 @@
 import { board } from "@/utils/types";
-import { Group, Modal, Select, Text, Avatar, TextInput } from "@mantine/core";
+import { Group, Modal, Select, Text, Avatar, TextInput, Stack } from "@mantine/core";
 import { useEffect, useState, useMemo } from "react";
 import { notifications } from "@mantine/notifications";
 import { postRequest } from "@/utils/net";
@@ -122,8 +122,7 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
         setToMemberSearchValue('');
     }, [open]);
 
-
-
+    const MemberSelectLayout = isMobile ? Stack : Group;
 
     return (
         <Modal
@@ -138,15 +137,15 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
                     </Text>
                 </Group>
             }
-            centered
+            centered={!isMobile}
+            fullScreen={isMobile}
             size="md"
             overlayProps={modalOverlayProps}
         >
             <ModalPaper>
                 <form onSubmit={form.onSubmit(handleTransfer)}>
 
-
-                    <Group align="flex-start" gap="md" grow>
+                    <MemberSelectLayout align="flex-start" gap="md" grow>
                         <Select
                             label={"Da (mittente)"}
                             placeholder="Seleziona membro"
@@ -201,16 +200,15 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
                             {...form.getInputProps('toMember')}
                         />
 
-                    </Group>
+                    </MemberSelectLayout>
 
-                    <Group align="flex-start" gap="md" grow mt="md">
-                        <AdvancedNumberInput
-                            label="Importo (€)"
-                            placeholder="0,00"
-                            styles={inputStyles}
-                            {...form.getInputProps('amount')}
-                        />
-                    </Group>
+                    <AdvancedNumberInput
+                        label="Importo (€)"
+                        placeholder="0,00"
+                        mt="md"
+                        styles={inputStyles}
+                        {...form.getInputProps('amount')}
+                    />
 
                     <TextInput
                         label="Descrizione"

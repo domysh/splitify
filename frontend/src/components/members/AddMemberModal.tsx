@@ -8,6 +8,7 @@ import {
     MultiSelect,
     Paper,
     Space,
+    Stack,
     Text,
     TextInput,
 } from "@mantine/core";
@@ -53,6 +54,7 @@ export const AddMemberModal = ({
 }: AddMemberModalProps) => {
     const { setLoading } = useLoading();
     const isMobile = useMobile();
+    const FormLayout = isMobile ? Stack : Group;
 
     const formAdd = useForm<MemberFormValues>({
         initialValues: {
@@ -136,8 +138,8 @@ export const AddMemberModal = ({
             <Space h="md" />
             <ModalPaper>
                 <form onSubmit={formAdd.onSubmit(handleSubmit)}>
-                    <Group align="flex-start" gap={10}>
-                        <Box style={{ flex: 1 }}>
+                    <FormLayout align="flex-start" gap={10}>
+                        <Box style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
                             <TextInput
                                 label={
                                     <Text
@@ -251,7 +253,7 @@ export const AddMemberModal = ({
                                 </>
                             )}
                         </Paper>
-                    </Group>
+                    </FormLayout>
                     <FormButtonBox
                         icon={<IconUserPlus size={16} />}
                         label="Aggiungi Membro"
