@@ -1,5 +1,12 @@
 import { mock } from "bun:test";
 
+// Keep the suite hermetic: no SMTP connection is opened while testing.
+mock.module("../utils/mailer", () => ({
+    sendMail: async () => {},
+    sendOtpMail: async () => {},
+    sendInfoMail: async () => {},
+}));
+
 mock.module("../utils/socket", () => ({
     emitAdminUpdate: () => {},
     emitUserUpdate: () => {},

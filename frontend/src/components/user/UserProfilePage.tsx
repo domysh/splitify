@@ -20,7 +20,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { useCurrentUser } from '@/utils/hooks';
 import { useAuth, useHeader, useLoading } from '@/utils/store';
-import { IconTrash, IconFingerprint, IconDevices, IconDeviceDesktop, IconDeviceMobile, IconMapPin, IconClock, IconTrashX, IconEdit } from '@tabler/icons-react';
+import { IconTrash, IconFingerprint, IconDevices, IconDeviceDesktop, IconDeviceMobile, IconMapPin, IconClock, IconTrashX, IconEdit, IconMail, IconMailCog } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { deleteRequest, putRequest, postRequest } from '@/utils/net';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -28,6 +28,7 @@ import { HomeButton } from '@/commons/Buttons';
 import { FormButtonBox } from '@/commons/FormButtonBox';
 
 import { YesOrNoModal } from '@/commons/YesOrNoModal';
+import { ChangeEmailModal } from './ChangeEmailModal';
 import { useNavigate } from 'react-router';
 
 export default function UserProfilePage() {
@@ -43,6 +44,7 @@ export default function UserProfilePage() {
   const [passkeyModalAction, setPasskeyModalAction] = useState<{type: 'add' | 'rename', id?: string, defaultName?: string} | null>(null);
   const [deletePasskeyId, setDeletePasskeyId] = useState<string | null>(null);
   const [passkeyName, setPasskeyName] = useState('');
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
 
 
 
@@ -189,6 +191,40 @@ export default function UserProfilePage() {
       <Paper withBorder p="md" radius="md" mb="lg" className='admin-paper-style'>
         <Title order={3} mb="md" size="h4">
           <Group>
+            <IconMail size={20} />
+            <Text>Email</Text>
+          </Group>
+        </Title>
+        <Text c="dimmed" mb="md">
+          L'email identifica il tuo account e riceve i codici di accesso.
+        </Text>
+        <Flex align="center" justify="space-between" wrap="wrap" gap="md">
+          <Group wrap="nowrap">
+            <ThemeIcon size="xl" variant="light" color="indigo" radius="md">
+              <IconMail size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600}>{currentUser.email}</Text>
+              {currentUser.pendingEmailChange && (
+                <Badge color="yellow" variant="light" size="sm" mt={4}>
+                  In attesa di conferma: {currentUser.pendingEmailChange.newEmail}
+                </Badge>
+              )}
+            </Box>
+          </Group>
+          <Button
+            variant="light"
+            leftSection={<IconMailCog size={18} />}
+            onClick={() => setIsEmailModalOpen(true)}
+          >
+            {currentUser.pendingEmailChange ? 'Completa il cambio' : 'Cambia email'}
+          </Button>
+        </Flex>
+      </Paper>
+
+      <Paper withBorder p="md" radius="md" mb="lg" className='admin-paper-style'>
+        <Title order={3} mb="md" size="h4">
+          <Group>
             <IconFingerprint size={20} />
             <Text>Passkey</Text>
           </Group>
@@ -326,6 +362,13 @@ export default function UserProfilePage() {
         </form>
 
       </Paper>
+      <ChangeEmailModal
+        open={isEmailModalOpen}
+        onClose={() => setIsEmailModalOpen(false)}
+        currentEmail={currentUser.email}
+        pendingChange={currentUser.pendingEmailChange}
+      />
+
       <YesOrNoModal
         open={isDeleteModalOpen}
         message={

@@ -22,6 +22,7 @@ model User {
   passkeys               Passkey[]
   boards                 Board[]       @relation("BoardCreator")
   accesses               BoardAccess[]
+  emailChange            EmailChangeRequest?
 }
 
 model UserSession {
@@ -161,6 +162,18 @@ model Env {
   id    String @id @default(uuid())
   key   String @unique
   value String
+}
+
+model EmailChangeRequest {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  newEmail     String
+  code         String
+  expiresAt    DateTime
+  nextResendAt DateTime
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model OtpCode {

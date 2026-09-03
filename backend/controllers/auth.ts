@@ -14,7 +14,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoUint8Array } from '@simplewebauthn/server/helpers';
 import { RP_ID, RP_NAME, RP_ORIGIN } from '../config';
-import { sendMail } from '../utils/mailer';
+import { sendOtpMail } from '../utils/mailer';
 
 export enum RegistrationMode {
   PUBLIC = 'public',
@@ -41,14 +41,17 @@ export const getRegistrationToken = async (): Promise<string> => {
 };
 
 // Generate 6 digit OTP
-function generateOtp(): string {
+export function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+export const OTP_VALIDITY_MINUTES = 3;
+export const OTP_RESEND_COOLDOWN_SECONDS = 60;
+
 async function sendOtpEmail(email: string) {
   const code = generateOtp();
-  const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes validity
-  const nextResendAt = new Date(Date.now() + 60 * 1000); // 1 minute cooldown
+  const expiresAt = new Date(Date.now() + OTP_VALIDITY_MINUTES * 60 * 1000);
+  const nextResendAt = new Date(Date.now() + OTP_RESEND_COOLDOWN_SECONDS * 1000);
 
   await prisma.otpCode.upsert({
     where: { email },
@@ -56,46 +59,12 @@ async function sendOtpEmail(email: string) {
     create: { email, code, expiresAt, nextResendAt, attempts: 0 }
   });
 
-  const text = `Il tuo codice di accesso per Splitify è: ${code}\nQuesto codice scadrà in 3 minuti.`;
-  
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #eaebf0; }
-    .header { background: linear-gradient(135deg, #7a84ff, #9ba3ff); padding: 32px 24px; text-align: center; }
-    .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-    .content { padding: 40px 32px; text-align: center; }
-    .text { font-size: 16px; color: #4b5563; line-height: 1.6; margin-bottom: 24px; }
-    .otp-box { background: #f3f4ff; border: 1px solid #dbe0ff; border-radius: 12px; padding: 24px; margin: 32px 0; }
-    .otp-code { font-size: 38px; font-weight: 700; color: #5c67ff; letter-spacing: 10px; margin: 0; font-family: monospace; }
-    .footer { padding: 24px; text-align: center; background: #fafafa; border-top: 1px solid #f0f0f0; }
-    .footer p { font-size: 13px; color: #9ca3af; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Splitify</h1>
-    </div>
-    <div class="content">
-      <p class="text" style="font-weight: 600; color: #111827;">Codice di Sicurezza</p>
-      <p class="text">Abbiamo ricevuto una richiesta di accesso o registrazione per Splitify. Usa questo codice monouso per completare l'operazione:</p>
-      <div class="otp-box">
-        <p class="otp-code">${code}</p>
-      </div>
-      <p class="text" style="font-size: 14px; color: #6b7280;">Questo codice scade tra <strong>3 minuti</strong>. Se non hai richiesto tu l'accesso, puoi ignorare in sicurezza questa email.</p>
-    </div>
-    <div class="footer">
-      <p>Splitify 💰 — Gestisci le tue spese di gruppo in modo semplice.</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-  await sendMail(email, 'Codice di Accesso Splitify', text, html);
+  await sendOtpMail(email, code, {
+    subject: 'Codice di Accesso Splitify',
+    title: 'Codice di Sicurezza',
+    intro: "Abbiamo ricevuto una richiesta di accesso o registrazione per Splitify. Usa questo codice monouso per completare l'operazione:",
+    validityMinutes: OTP_VALIDITY_MINUTES
+  });
 }
 
 export const login = async (req: AuthRequest, res: Response) => {
@@ -302,7 +271,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 
   const fullUser = await prisma.user.findUnique({
     where: { id: user.id },
-    include: { sessions: true, passkeys: true }
+    include: { sessions: true, passkeys: true, emailChange: true }
   });
 
   if (!fullUser) {
@@ -318,7 +287,14 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     boardUsage: fullUser.boardUsage || {},
     passkeys: fullUser.passkeys,
     currentSessionId: req.token?.sid,
-    passkeyPromptDismissed: fullUser.passkeyPromptDismissed
+    passkeyPromptDismissed: fullUser.passkeyPromptDismissed,
+    pendingEmailChange: fullUser.emailChange && fullUser.emailChange.expiresAt > new Date()
+      ? {
+        newEmail: fullUser.emailChange.newEmail,
+        expiresAt: fullUser.emailChange.expiresAt,
+        nextResendAt: fullUser.emailChange.nextResendAt
+      }
+      : null
   });
 };
 

@@ -121,6 +121,15 @@ export interface UpdateUser {
 }
 
 
+export interface RequestEmailChange {
+  email: EmailType;
+}
+
+export interface ConfirmEmailChange {
+  code: string & tags.Pattern<"^[0-9]{6}$">;
+}
+
+
 export interface VerifyOtpRequest {
   email: EmailType;
   code: string & tags.Pattern<"^[0-9]{6}$">;
