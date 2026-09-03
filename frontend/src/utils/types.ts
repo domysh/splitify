@@ -18,6 +18,12 @@ export interface UserSession {
     location?: string;
 }
 
+export interface PendingEmailChange {
+    newEmail: string;
+    expiresAt: string;
+    nextResendAt: string;
+}
+
 export interface user {
     id: string;
     email: string;
@@ -29,6 +35,7 @@ export interface user {
     passkeys?: PasskeyCredential[];
     currentSessionId?: string;
     passkeyPromptDismissed?: boolean;
+    pendingEmailChange?: PendingEmailChange | null;
 }
 
 export enum RegistrationMode {

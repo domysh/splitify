@@ -83,6 +83,7 @@ export const useCurrentUser = () => {
                 boardUsage: undefined,
                 passkeys: undefined,
                 currentSessionId: undefined,
+                pendingEmailChange: undefined,
             }
         }
     }, [me.data, me.isLoading])

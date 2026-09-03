@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import typia, { TypeGuardError } from 'typia';
-import { AddBoardAccess, AddBoardForm, AddCategory, AddMember, AddProduct, AddTransaction, AddUser, AuthRequest, JwtPayload, LoginRequest, VerifyOtpRequest, SetRegistrationMode, TransferBoardOwnership, UpdateBoardAccess, UpdateUser } from '../models/types';
+import { AddBoardAccess, AddBoardForm, AddCategory, AddMember, AddProduct, AddTransaction, AddUser, AuthRequest, ConfirmEmailChange, JwtPayload, LoginRequest, RequestEmailChange, VerifyOtpRequest, SetRegistrationMode, TransferBoardOwnership, UpdateBoardAccess, UpdateUser } from '../models/types';
 
 const validateRequest = <T>(validator: (input: unknown) => T | Error) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -31,6 +31,8 @@ export const validateLogin = validateRequest((body: unknown) => {
   return body as any;
 });
 export const validateVerifyOtp = validateRequest(typia.createAssert<VerifyOtpRequest>())
+export const validateRequestEmailChange = validateRequest(typia.createAssert<RequestEmailChange>())
+export const validateConfirmEmailChange = validateRequest(typia.createAssert<ConfirmEmailChange>())
 
 export const validateSetRegistrationMode = validateRequest(typia.createAssert<SetRegistrationMode>())
 export const jwtValidator = typia.createAssertEquals<JwtPayload>();
