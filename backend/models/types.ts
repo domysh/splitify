@@ -191,7 +191,7 @@ export interface TransferBoardOwnership {
 
 
 
-export interface AuthRequest extends Request {
+export interface AuthRequest extends Request<Record<string, string>> {
   user?: any, // Full prisma user including relations
   token?: JwtPayload;
 }
