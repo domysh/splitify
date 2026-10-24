@@ -1,11 +1,11 @@
 import { Title, Text, SimpleGrid, Paper, Group, ThemeIcon, Stack, Button, Badge, Grid, RingProgress, Card, Skeleton, Box } from "@mantine/core";
 import { useNavigate } from "react-router";
-import { platformStatsQuery } from "@/utils/queries";
+import { usePlatformStatsQuery } from "@/utils/queries";
 import { IconChartBarPopular, IconSettings, IconUsers } from "@tabler/icons-react";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const stats = platformStatsQuery()
+  const stats = usePlatformStatsQuery()
   
   const adminFeatures = [
     {

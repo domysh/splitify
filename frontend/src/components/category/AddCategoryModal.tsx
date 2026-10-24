@@ -35,9 +35,10 @@ export const AddCategoryModal = ({ open, onClose, board, closeOnEnd }: AddCatego
     });
 
     
+    const resetForm = formAdd.reset;
     useEffect(() => {
-        if (open) formAdd.reset();
-    }, [open]);
+        if (open) resetForm();
+    }, [open, resetForm]);
 
     
     const handleSubmit = formAdd.onSubmit((values) => {

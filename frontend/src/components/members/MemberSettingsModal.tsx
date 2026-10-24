@@ -65,8 +65,8 @@ export const MemberSettingsModal = ({
     );
 
     useEffect(() => {
-        if (open) return;
-        setCurrentPage(1);
+        if (!open) return;
+        return () => setCurrentPage(1);
     }, [open]);
 
     const handleNameChange = useCallback(
@@ -119,12 +119,13 @@ export const MemberSettingsModal = ({
     );
 
     useEffect(() => {
-        setEdits({});
-        if (open) {
-            setTimeout(() => setAnimateTable(true), 100);
-        } else {
+        if (!open) return;
+        const timer = setTimeout(() => setAnimateTable(true), 100);
+        return () => {
+            clearTimeout(timer);
+            setEdits({});
             setAnimateTable(false);
-        }
+        };
     }, [open]);
 
     const handleSaveChanges = useCallback(() => {

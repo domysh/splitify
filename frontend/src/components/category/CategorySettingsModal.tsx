@@ -47,23 +47,31 @@ export const CategorySettingsModal = ({ open, onClose, board }: CategorySettings
 
     
     useEffect(() => {
-        if (open) return
-        setCurrentPage(1);
+        if (!open) return;
+        return () => setCurrentPage(1);
     }, [open]);
 
+    const resetAddForm = formAdd.reset;
     useEffect(() => {
-        formAdd.reset()
-    }, [openAddCategory]);
+        resetAddForm()
+    }, [openAddCategory, resetAddForm]);
 
     useEffect(() => {
-        setEdits({});
-        if (open) {
-            const sortedCategories = [...board.categories].sort((a, b) => a.order - b.order);
-            setOrderedCategories(sortedCategories);
-            setTimeout(() => setAnimateTable(true), 100);
-        } else {
+        if (!open) return;
+        const timer = setTimeout(() => setAnimateTable(true), 100);
+        return () => {
+            clearTimeout(timer);
             setAnimateTable(false);
-        }
+        };
+    }, [open]);
+
+    // Re-sync the editable order with server data while open (drops local edits).
+    useEffect(() => {
+        if (!open) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- local copy of server data, re-synced on change
+        setEdits({});
+        setOrderedCategories([...board.categories].sort((a, b) => a.order - b.order));
+        return () => setEdits({});
     }, [open, board]);
 
     

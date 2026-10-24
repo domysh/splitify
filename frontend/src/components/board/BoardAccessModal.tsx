@@ -1,3 +1,4 @@
+import type { ApiError } from '@/utils/net';
 import { useState, useEffect } from 'react';
 import { Modal, Text, Stack, Select, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -36,6 +37,7 @@ export const BoardAccessModal = ({
 
     useEffect(() => {
         if (open) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local UI state when the modal opens
             setEmailInput('');
             setSelectedPermission(initialPermission || BoardPermission.VIEWER);
         }
@@ -98,7 +100,8 @@ export const BoardAccessModal = ({
             }
 
             handleClose();
-        } catch (err: any) {
+        } catch (caught) {
+            const err = caught as ApiError;
             notifications.show({
                 title: 'Errore',
                 message: err.detail || err.message || `Si è verificato un errore durante l'${mode === 'add' ? 'aggiunta' : 'aggiornamento'} del permesso`,

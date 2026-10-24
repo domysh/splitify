@@ -36,13 +36,13 @@ export const YesOrNoModal = ({
     const [animateIcon, setAnimateIcon] = useState(false);
     const isMobile = useMobile();
 
-    useEffect(() => { 
-        if (open) {
-            const timer = setTimeout(() => setAnimateIcon(true), 100);
-            return () => clearTimeout(timer);
-        } else {
+    useEffect(() => {
+        if (!open) return;
+        const timer = setTimeout(() => setAnimateIcon(true), 100);
+        return () => {
+            clearTimeout(timer);
             setAnimateIcon(false);
-        }
+        };
     }, [open]);
     
     return (

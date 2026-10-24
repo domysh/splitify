@@ -21,8 +21,7 @@ export const socket = import.meta.env.DEV ?
         }
     })
 
-export const onConnectionCallbacks = [] as { key: string, cb: Function }[]
-export const onDisconnectionCallbacks = [] as { key: string, cb: Function }[]
+export const onConnectionCallbacks = [] as { key: string, cb: () => void }[]
 const pendingLeaveTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 export const joinBoardRoom = (boardId: string) => {

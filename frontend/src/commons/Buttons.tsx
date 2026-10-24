@@ -250,7 +250,7 @@ export const SubmitButton = forwardRef<HTMLButtonElement, SubmitButtonProps>(
     },
 );
 
-export interface CancelButtonProps extends SubmitButtonProps {}
+export type CancelButtonProps = SubmitButtonProps;
 
 export const CancelButton = forwardRef<HTMLButtonElement, CancelButtonProps>(
     ({ responsive, icon, ...other }, ref) => {

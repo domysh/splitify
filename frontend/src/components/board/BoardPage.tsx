@@ -1,5 +1,5 @@
 import { useCalculatePaylist, useCurrentUser, useSmallScreen } from "@/utils/hooks"
-import { boardQuery } from "@/utils/queries"
+import { useBoardQuery } from "@/utils/queries"
 import { Box, Button, Loader, Menu, SegmentedControl, Tooltip, Avatar } from "@mantine/core"
 import { Paper, Title, Text, Group, Popover, Stack } from "@mantine/core"
 import { useEffect, useMemo } from "react"
@@ -35,18 +35,13 @@ const BoardPage = () => {
 
     const { board_id, screen } = useParams() as { board_id: string, screen: "members" | "products" | undefined }
     const boardId = useMemo(() => board_id, [board_id]);
-    const board_q = boardQuery(boardId);
+    const board_q = useBoardQuery(boardId);
     const board = board_q.data;
     const location = useNavigate();
     const currentUser = useCurrentUser()
-    const [isMounted, setIsMounted] = useState(false);
     const queryClient = useQueryClient();
     const isSmallScreen = useSmallScreen()
 
-    useEffect(() => {
-        setIsMounted(true);
-        return () => setIsMounted(false);
-    }, []);
 
 
     const [boardSettingsOpened, setBoardSettingsOpened] = useState(false)
@@ -78,7 +73,7 @@ const BoardPage = () => {
                 })
             }
         }
-    }, [boardId]);
+    }, [boardId, queryClient]);
 
     useEffect(() => {
         if (board_q.isError) {
@@ -162,7 +157,7 @@ const BoardPage = () => {
                 {currentUser && <BackButton onClick={() => location("/")} />}
             </Group>
         )
-    }, [screen, currentUser, canEditBoard, isOwner])
+    }, [screen, currentUser, canEditBoard, isOwner, boardId, location, setHeader])
 
     useEffect(() => {
 
@@ -174,7 +169,7 @@ const BoardPage = () => {
             });
             location('/');
         }
-    }, [board_q.isFetching, currentUser, location]);
+    }, [board_q.data, board_q.isError, board_q.isFetching, currentUser, location]);
 
     const paylist = useCalculatePaylist(board)
 
@@ -306,10 +301,6 @@ const BoardPage = () => {
             return 0;
         });
     }, [onlineUsers]);
-
-    if (!isMounted) {
-        return null;
-    }
 
     if (board_q.isLoading && !board) {
         return (

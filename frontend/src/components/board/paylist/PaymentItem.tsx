@@ -1,10 +1,11 @@
+import { payment } from "@/utils/types";
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
 import { useCurrentUser, useSmallScreen } from "@/utils/hooks";
 import { Avatar, Badge, Box, Button, Group, Paper, Text } from "@mantine/core";
 import { IconArrowRight, IconExchange } from "@tabler/icons-react";
 
 export interface PaymentItemProps {
-    payment: any;
+    payment: payment;
     index: number;
     fromName: string;
     toName: string;

@@ -1,7 +1,7 @@
 import { deleteRequest } from "@/utils/net";
 import { Text, Box } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { adminUsersQuery } from "@/utils/queries";
+import { useAdminUsersQuery } from "@/utils/queries";
 import { useMemo } from "react";
 import { useLoading } from "@/utils/store";
 import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react';
@@ -15,7 +15,7 @@ interface UserDeleteModalProps {
 
 export const UserDeleteModal = ({ open, onClose, userId }: UserDeleteModalProps) => {
     const { setLoading } = useLoading();
-    const users = adminUsersQuery();
+    const users = useAdminUsersQuery();
     const user = useMemo(() => users.data?.find((user) => user.id === userId), [users.data, userId]);
 
     const handleDelete = () => {

@@ -33,10 +33,11 @@ export const AddBoardModal = ({ open, onClose }: BoardFormModalProps) => {
     });
 
     
+    const resetForm = form.reset;
     useEffect(() => {
         if (open) return;
-        form.reset()
-    }, [open]);
+        resetForm()
+    }, [open, resetForm]);
 
     const handleSubmit = (values: typeof form.values) => {
         setLoading(true);

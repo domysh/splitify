@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, ReactNode } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { JwtPayload } from './types'
 
 type HeaderInfo = {
-  header: any
-  setHeader: (h: any) => void
+  header: ReactNode
+  setHeader: (h: ReactNode) => void
 }
 
 export const useHeader = create<HeaderInfo>()((set) => ({
@@ -68,8 +68,8 @@ export const useIsLoading = () => {
 
 type AuthState = {
   isAuthenticated: boolean;
-  token: any | null;
-  login: (userData: any) => void;
+  token: string | null;
+  login: (userData: string | null) => void;
   logout: () => void;
   tokenInfo: () => JwtPayload | null;
   isHydrated: boolean;
@@ -93,7 +93,7 @@ export const useAuth = create<AuthState>()(
       },
       tokenInfo: () => {
         if (!get().token) return null
-        const payload = get().token.split('.')[1];
+        const payload = get().token!.split('.')[1];
         return JSON.parse(atob(payload)) as JwtPayload;
       },
       isHydrated: false,

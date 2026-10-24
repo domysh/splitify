@@ -13,7 +13,7 @@ import {
   IconRestore,
   IconTrash,
 } from "@tabler/icons-react";
-import { transactionsQuery } from "@/utils/queries";
+import { useTransactionsQuery } from "@/utils/queries";
 import { Space } from "@mantine/core";
 import { usePermissions } from "@/utils/hooks";
 import { modalOverlayOptions, modalStyles } from "@/styles/commonStyles";
@@ -51,17 +51,17 @@ const getTransactionColor = (transaction: transaction) => {
 };
 
 export const TransactionsModal = ({ board, open, onClose }: TransactionsModalProps) => {
-  const transactionsQuery_ = transactionsQuery(board.id);
+  const transactionsQuery_ = useTransactionsQuery(board.id);
   const [currentPage, setCurrentPage] = useState(1);
   const { canEdit } = usePermissions(board);
   const isMobile = useMobile();
 
   useEffect(() => {
-    if (open) return
-    setCurrentPage(1);
+      if (!open) return;
+      return () => setCurrentPage(1);
   }, [open]);
 
-  const transactions = transactionsQuery_.data || [];
+  const transactions = useMemo(() => transactionsQuery_.data ?? [], [transactionsQuery_.data]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

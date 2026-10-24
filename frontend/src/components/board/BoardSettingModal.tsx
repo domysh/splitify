@@ -9,7 +9,7 @@ import { YesOrNoModal } from "@/commons/YesOrNoModal";
 import { useNavigate } from "react-router";
 import { DeleteButton } from "@/commons/Buttons";
 import { IconSettings, IconCircleCheck, IconUserPlus, IconUserMinus, IconExchange, IconUsers, IconEdit } from "@tabler/icons-react";
-import { boardAccessQuery } from "@/utils/queries";
+import { useBoardAccessQuery } from "@/utils/queries";
 import { BoardPermission } from "@/utils/types";
 import { BoardAccessModal } from "@/components/board/BoardAccessModal";
 import { useLoading } from "@/utils/store";
@@ -30,7 +30,6 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
     const isMobile = useMobile()
     const queryClient = useQueryClient()
     const location = useNavigate()
-    const [isDirty, setIsDirty] = useState(false);
     const [activeTab, setActiveTab] = useState<string>("general");
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -57,18 +56,12 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                 name: board?.name || '',
                 isPublic: board?.isPublic !== undefined ? board.isPublic : true
             });
-            setIsDirty(false);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `form` is a new object every render; only re-run on these triggers
     }, [open, board]);
 
 
-    useEffect(() => {
-        if (form.values.name !== board?.name || form.values.isPublic !== board?.isPublic) {
-            setIsDirty(true);
-        } else {
-            setIsDirty(false);
-        }
-    }, [form.values, board]);
+    const isDirty = form.values.name !== board?.name || form.values.isPublic !== board?.isPublic;
 
 
     const handleSubmit = (values: typeof form.values) => {
@@ -84,7 +77,6 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                         icon: <IconCircleCheck size={20} />
                     });
 
-                    setIsDirty(false);
 
                 } else {
                     notifications.show({
@@ -132,7 +124,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
     }, [board.id, queryClient, location, onClose, setLoading]);
 
 
-    const accessQuery = boardAccessQuery(board?.id);
+    const accessQuery = useBoardAccessQuery(board?.id);
 
 
     const handleRemoveAccess = useCallback(async (userId: string) => {
@@ -145,7 +137,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
                 color: "blue"
             });
             queryClient.invalidateQueries({ queryKey: ['boards', board.id, 'access'] });
-        } catch (error) {
+        } catch {
             notifications.show({
                 title: "Errore",
                 message: "Impossibile rimuovere l'accesso",
@@ -175,7 +167,7 @@ export const BoardSettingsModal = ({ open, onClose, board }: BoardSettingsModalP
 
             queryClient.invalidateQueries({ queryKey: ['boards'] });
             onClose();
-        } catch (error) {
+        } catch {
             notifications.show({
                 title: "Errore",
                 message: "Impossibile trasferire la proprietà",

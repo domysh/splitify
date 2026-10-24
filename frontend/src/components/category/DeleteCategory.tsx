@@ -1,7 +1,6 @@
 import { deleteRequest } from "@/utils/net";
 import { board, category } from "@/utils/types";
 import { notifications } from "@mantine/notifications";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState, memo } from "react";
 import { YesOrNoModal } from "@/commons/YesOrNoModal";
 import { DeleteButton } from "@/commons/Buttons";
@@ -15,7 +14,6 @@ interface DeleteCategoryProps {
 
 export const DeleteCategory = memo(({ board, category }: DeleteCategoryProps) => {
     const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
-    const queryClient = useQueryClient();
     const { setLoading } = useLoading();
 
     const handleDelete = useCallback((): void => {
@@ -31,7 +29,7 @@ export const DeleteCategory = memo(({ board, category }: DeleteCategoryProps) =>
         }).finally(() => {
             setLoading(false);
         });
-    }, [board.id, category.id, queryClient, setLoading]);
+    }, [board.id, category.id, setLoading]);
     
     return <>
         <DeleteButton onClick={() => setConfirmDelete(true)} />

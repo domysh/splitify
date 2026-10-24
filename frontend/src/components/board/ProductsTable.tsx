@@ -9,7 +9,7 @@ import { usePermissions } from "@/utils/hooks";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { CategoryCheckbox } from "@/commons/CategoryCheckbox";
 import { formatPrice, getInitials, hashColor } from "@/utils/formatters";
-import { transactionsQuery } from "@/utils/queries";
+import { useTransactionsQuery } from "@/utils/queries";
 
 interface CategoryToggleVariables {
     prodId: string;
@@ -29,7 +29,7 @@ export interface ProductsTableProps {
 export const ProductsTable = ({ board }: ProductsTableProps) => {
     const queryClient = useQueryClient();
     const isMobile = useMobile();
-    const { data: transactions } = transactionsQuery(board.id);
+    const { data: transactions } = useTransactionsQuery(board.id);
 
     const getPayerName = useCallback((prodId: string) => {
         if (!transactions) return undefined;
@@ -47,8 +47,8 @@ export const ProductsTable = ({ board }: ProductsTableProps) => {
     const tableRef = useStickyScrollableHeader({ headHeight: 30, topOffset: 70 });
 
 
-    const toggleCategoryMutation = useMutation<any, Error, CategoryToggleVariables, MutationContext>({
-        mutationFn: ({ prodId, catId: _, newCategories }) => {
+    const toggleCategoryMutation = useMutation<unknown, Error, CategoryToggleVariables, MutationContext>({
+        mutationFn: ({ prodId, newCategories }) => {
             const product = board.products.find(p => p.id === prodId);
             if (!product) throw new Error("Spesa non trovata");
 
@@ -59,7 +59,7 @@ export const ProductsTable = ({ board }: ProductsTableProps) => {
                 }
             });
         },
-        onMutate: async ({ prodId, catId: _, newCategories }) => {
+        onMutate: async ({ prodId, newCategories }) => {
             await queryClient.cancelQueries({ queryKey: ['boards', board.id] });
             const previousBoard = queryClient.getQueryData<board>(['boards', board.id]);
 
@@ -181,7 +181,7 @@ export const ProductsTable = ({ board }: ProductsTableProps) => {
                 ))}
             </Table.Tr>
         )),
-        [board.products, sortedCategories, canEdit, handleCategoryToggle, isCheckboxChecked, isCategoryLoading]);
+        [board.products, sortedCategories, canEdit, handleCategoryToggle, isCheckboxChecked, isCategoryLoading, getPayerName]);
 
     const totalPrice = useMemo(() => (board.products.reduce((acc, prod) => acc + prod.price, 0)), [board.products]);
     const categoryHeaders = useMemo(() =>

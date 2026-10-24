@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { getRequest } from "@/utils/net";
+import { ApiError, getRequest } from "@/utils/net";
 import { board, user, transaction, boardListing, boardAccess, GlobalStats, RegistrationInfo } from "@/utils/types";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "./store";
 
-const retryLogic = (failureCount:number, error:any) => {
+const retryLogic = (failureCount:number, error: ApiError) => {
     if (error.code != 404 && failureCount < 3) {
         return true
     }
@@ -17,7 +17,7 @@ const retryLogic = (failureCount:number, error:any) => {
     return false
 }
 
-export const boardsQuery = () => useQuery<boardListing[], Error>({
+export const useBoardsQuery = () => useQuery<boardListing[], Error>({
     queryKey: ['boards'],
     queryFn: () => getRequest('boards').then((data) => (data as boardListing[]).sort((a, b) => a.name.localeCompare(b.name))),
     refetchInterval: 0,
@@ -26,7 +26,7 @@ export const boardsQuery = () => useQuery<boardListing[], Error>({
     staleTime: 5 * 60 * 1000
 })
 
-export const boardQuery = (id: string) => useQuery<board, Error>({
+export const useBoardQuery = (id: string) => useQuery<board, Error>({
     queryKey: ['boards', id],
     queryFn: () => getRequest(`boards/${id}`).then((data) => {
         const b = data as board;
@@ -42,7 +42,7 @@ export const boardQuery = (id: string) => useQuery<board, Error>({
     retry: false
 })
 
-export const meQuery = () => {
+export const useMeQuery = () => {
     const {token} = useAuth();
     
     const hasToken = token?true:false;
@@ -61,13 +61,13 @@ export const meQuery = () => {
     });
 };
 
-export const transactionsQuery = (boardId: string) => useQuery<transaction[], Error>({
+export const useTransactionsQuery = (boardId: string) => useQuery<transaction[], Error>({
     queryKey: ['boards', boardId, 'transactions'],
     queryFn: () => getRequest(`transactions/${boardId}`).then((data) => (data as transaction[]).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())),
     staleTime: 5 * 60 * 1000
 });
 
-export const adminUsersQuery = () => {
+export const useAdminUsersQuery = () => {
     return useQuery({
         queryKey: ['users'],
         queryFn: () => getRequest("users").then((data) => (data as user[]).sort((a, b) => a.email.localeCompare(b.email))),
@@ -75,14 +75,14 @@ export const adminUsersQuery = () => {
     });
 }
 
-export const boardAccessQuery = (boardId?: string) => useQuery<boardAccess[], Error>({
+export const useBoardAccessQuery = (boardId?: string) => useQuery<boardAccess[], Error>({
     queryKey: ['boards', boardId, 'access'],
     queryFn: () => getRequest(`boards/${boardId}/access`).then((data) => (data as boardAccess[]).sort((a, b) => a.email.localeCompare(b.email))),
     enabled: boardId? true : false,
     staleTime: 5 * 60 * 1000
 });
 
-export const registrationInfoQuery = () => {
+export const useRegistrationInfoQuery = () => {
     return useQuery({
         queryKey: ['registration', 'info'],
         queryFn: async () => {
@@ -98,7 +98,7 @@ export const registrationInfoQuery = () => {
     });
 };
 
-export const platformStatsQuery = () => {
+export const usePlatformStatsQuery = () => {
     return useQuery({
         queryKey: ['stats'],
         queryFn: () => getRequest('admin/stats') as Promise<GlobalStats>,

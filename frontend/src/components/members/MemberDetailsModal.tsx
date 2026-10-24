@@ -11,7 +11,7 @@ import {
   IconCashOff,
   IconScale
 } from "@tabler/icons-react";
-import { transactionsQuery } from "@/utils/queries";
+import { useTransactionsQuery } from "@/utils/queries";
 import { Space } from "@mantine/core";
 import { modalOverlayOptions, modalStyles } from "@/styles/commonStyles";
 import { formatPrice, formatDate } from "@/utils/formatters";
@@ -44,11 +44,12 @@ const getTransactionColor = (transaction: transaction) => {
 };
 
 export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDetailsModalProps) => {
-  const transactionsQuery_ = transactionsQuery(board.id);
+  const transactionsQuery_ = useTransactionsQuery(board.id);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    if (!open) setCurrentPage(1);
+      if (!open) return;
+      return () => setCurrentPage(1);
   }, [open]);
 
   const member = useMemo(() => {
@@ -63,7 +64,7 @@ export const MemberDetailsModal = ({ board, memberId, open, onClose }: MemberDet
     return debits.find(d => d.id === memberId) || null;
   }, [debits, memberId]);
 
-  const allTransactions = transactionsQuery_.data || [];
+  const allTransactions = useMemo(() => transactionsQuery_.data ?? [], [transactionsQuery_.data]);
   
   const memberTransactions = useMemo(() => {
     if (!memberId) return [];

@@ -1,4 +1,4 @@
-import { boardsQuery } from "@/utils/queries"
+import { useBoardsQuery } from "@/utils/queries"
 import { BoardCard } from "@/components/board/BoardCard"
 import { useEffect, useState } from "react"
 import { useCurrentUser } from "@/utils/hooks"
@@ -12,7 +12,7 @@ import { togglePinBoard } from "@/utils/net"
 import { useQueryClient } from "@tanstack/react-query"
 
 const Dashboard = () => {
-    const boards = boardsQuery()
+    const boards = useBoardsQuery()
     const { setLoading } = useLoading()
     const currentUser = useCurrentUser()
     const { setHeader } = useHeader()
@@ -23,23 +23,23 @@ const Dashboard = () => {
 
     useEffect(() => {
         setHeader(<AddButton onClick={()=>setOpenAddModal(true)}/>)
-    }, [currentUser])
+    }, [currentUser, setHeader])
 
     useEffect(() => {
         setLoading(boards.isLoading)
         if (boards.isError)
             notifications.show({
                 title: "Error fetching boards",
-                message: boards.error.message,
+                message: boards.error?.message,
                 color: "red"
             })
-    }, [boards.isLoading, boards.isError, setLoading])
+    }, [boards.isLoading, boards.isError, boards.error, setLoading])
 
     const handlePinToggle = async (boardId: string) => {
         try {
             await togglePinBoard(boardId);
             queryClient.invalidateQueries({ queryKey: ['me'] });
-        } catch (error: any) {
+        } catch {
             notifications.show({
                 title: "Errore",
                 message: "Impossibile aggiornare i preferiti",

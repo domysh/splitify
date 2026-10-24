@@ -2,7 +2,7 @@ import { FormButtonBox } from "@/commons/FormButtonBox";
 import { ModalPaper } from "@/commons/ModalPaper";
 import { modalOverlayProps } from "@/styles/commonStyles";
 import { postRequest, putRequest } from "@/utils/net";
-import { adminUsersQuery } from "@/utils/queries";
+import { useAdminUsersQuery } from "@/utils/queries";
 import { useLoading } from "@/utils/store";
 import { Role } from "@/utils/types";
 import { Modal, Select, TextInput } from "@mantine/core";
@@ -20,7 +20,7 @@ interface UserModalProps {
 
 export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
     const { setLoading } = useLoading();
-    const users = adminUsersQuery();
+    const users = useAdminUsersQuery();
     const user = useMemo(() => users.data?.find((u) => u.id === userId), [users.data, userId]);
     const [roleSearchValue, setRoleSearchValue] = useState('');
 
@@ -48,9 +48,11 @@ export const UserModal = ({ open, onClose, mode, userId }: UserModalProps) => {
         }
         if (open){
             form.reset();
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local UI state when the modal opens
             setRoleSearchValue('');
             return;
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `form` is a new object every render; only re-run on these triggers
     }, [open, users.isFetching, mode]);
 
     const handleSubmit = (values: typeof form.values) => {

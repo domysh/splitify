@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import { useEffect } from "react";
 import { useCurrentUser } from "@/utils/hooks";
 import { IconDashboard, IconSettings, IconUsers } from "@tabler/icons-react";
-import { platformStatsQuery } from "@/utils/queries";
+import { usePlatformStatsQuery } from "@/utils/queries";
 import { useHeader, useLoading } from "@/utils/store";
 
 export const AdminLayout = () => {
@@ -11,7 +11,7 @@ export const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const {setLoading} = useLoading();
-    const stats = platformStatsQuery()
+    const stats = usePlatformStatsQuery()
     const { setHeader } = useHeader()
 
     useEffect(() => {
@@ -24,7 +24,7 @@ export const AdminLayout = () => {
 
     useEffect(() => {
         setHeader(null)
-    }, []);
+    }, [setHeader]);
     
     
     if (currentUser?.isLoading || !currentUser?.isAdmin) {

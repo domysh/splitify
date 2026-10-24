@@ -6,7 +6,7 @@ import { IconCircleCheck, IconAlertCircle } from "@tabler/icons-react";
 import { DeleteButton } from "@/commons/Buttons";
 import { YesOrNoModal } from "@/commons/YesOrNoModal";
 import { useLoading } from "@/utils/store";
-import { transactionsQuery } from "@/utils/queries";
+import { useTransactionsQuery } from "@/utils/queries";
 import { Box, List, Text, ThemeIcon, Select } from "@mantine/core";
 
 export interface DeleteMemberProps {
@@ -19,7 +19,7 @@ export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
     const [transferTo, setTransferTo] = useState<string | null>(null);
     const { setLoading } = useLoading();
 
-    const { data: transactions, isLoading } = transactionsQuery(board.id);
+    const { data: transactions, isLoading } = useTransactionsQuery(board.id);
 
     const relatedTransactions = transactions?.filter(t =>
         (t.fromMemberId === member.id || t.toMemberId === member.id) && !t.cancelled
@@ -105,7 +105,7 @@ export const DeleteMember = ({ board, member }: DeleteMemberProps) => {
             open={confirmDelete}
             onClose={() => setConfirmDelete(false)}
             onConfirm={handleDelete}
-            message={deleteMessage as any}
+            message={deleteMessage}
             confirmText="Elimina definitivamente"
         />
     </>

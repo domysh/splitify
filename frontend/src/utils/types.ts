@@ -29,6 +29,7 @@ export interface user {
     email: string;
     role: Role;
     lastAccess?: string;
+    boardsCount?: number;
     sessions?: UserSession[];
     pinnedBoards?: string[];
     boardUsage?: Record<string, number>;

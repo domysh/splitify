@@ -42,8 +42,8 @@ export const MembersTable = ({ board }: MembersTableProps) => {
 
     const tableRef = useStickyScrollableHeader({ headHeight: 30, topOffset: 70 });
 
-    const toggleCategoryMutation = useMutation<any, Error, CategoryToggleVariables, MutationContext>({
-        mutationFn: ({ memberId, catId: _, newCategories }) => {
+    const toggleCategoryMutation = useMutation<unknown, Error, CategoryToggleVariables, MutationContext>({
+        mutationFn: ({ memberId, newCategories }) => {
             const member = board.members.find(m => m.id === memberId);
             if (!member) throw new Error("Membro non trovato");
             return putRequest(`boards/${board.id}/members/${memberId}`, {
@@ -53,7 +53,7 @@ export const MembersTable = ({ board }: MembersTableProps) => {
                 }
             });
         },
-        onMutate: async ({ memberId, catId: _, newCategories }) => {
+        onMutate: async ({ memberId, newCategories }) => {
             await queryClient.cancelQueries({ queryKey: ['boards', board.id] });
             const previousBoard = queryClient.getQueryData<board>(['boards', board.id]);
             if (previousBoard) {

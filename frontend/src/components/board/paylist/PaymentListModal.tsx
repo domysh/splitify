@@ -32,8 +32,8 @@ const LoadingState = () => (
 
 const ErrorState = ({ status, balance, what }: { status: string; balance?: number; what?: string }) => {
   
-  let errorMessage = "";
-  let suggestion = "";
+  let errorMessage: string;
+  let suggestion: string;
 
   switch (what) {
     case "no-board":

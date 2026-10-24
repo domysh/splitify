@@ -1,3 +1,4 @@
+import type { ApiError } from '@/utils/net';
 import { board } from "@/utils/types";
 import { Group, Modal, Select, Text, Avatar, TextInput, Stack } from "@mantine/core";
 import { useEffect, useState, useMemo } from "react";
@@ -63,12 +64,14 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
         if (form.values.productId && form.values.toMember) {
             form.setFieldValue('toMember', '');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `form` is a new object every render; only re-run on these triggers
     }, [form.values.toMember, form.values.productId]);
 
+    const resetForm = form.reset;
     useEffect(() => {
         if (open) return
-        form.reset();
-    }, [open]);
+        resetForm();
+    }, [open, resetForm]);
 
     const memberOptions = useMemo(() => [
         ...board.members.map((member) => ({
@@ -105,7 +108,8 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
             });
             onClose();
             form.reset();
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as ApiError;
             notifications.show({
                 title: "Errore nella transazione",
                 message: error.message || "Si è verificato un errore durante la registrazione",
@@ -117,9 +121,11 @@ export const MoneyTransferModal = ({ board, open, onClose }: MoneyTransferModalP
     };
 
     useEffect(() => {
-        if (open) return
-        setFromMemberSearchValue('');
-        setToMemberSearchValue('');
+        if (!open) return;
+        return () => {
+            setFromMemberSearchValue('');
+            setToMemberSearchValue('');
+        };
     }, [open]);
 
     const MemberSelectLayout = isMobile ? Stack : Group;

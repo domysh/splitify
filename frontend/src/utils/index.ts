@@ -56,7 +56,7 @@ export const calculateDebits = (board?: board) => {
 }
 
 export const usernameValidator = (username: string): string|null => {
-    const regex = /^[a-zA-Z0-9\-\_\.]{5,30}$/;
+    const regex = /^[a-zA-Z0-9\-_.]{5,30}$/;
     if (regex.test(username)) {
         return null;
     }

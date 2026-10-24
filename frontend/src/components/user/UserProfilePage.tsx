@@ -1,3 +1,4 @@
+import type { ApiError } from '@/utils/net';
 import { useState, useEffect } from 'react';
 import {
   Box,
@@ -106,10 +107,10 @@ export default function UserProfilePage() {
       } else {
         throw new Error('Verifica fallita');
       }
-    } catch (error: any) {
+    } catch (error) {
       notifications.show({
         title: 'Errore Passkey',
-        message: error.message || "Impossibile registrare la passkey",
+        message: (error as ApiError).message || "Impossibile registrare la passkey",
         color: 'red'
       });
     } finally {
@@ -127,8 +128,8 @@ export default function UserProfilePage() {
         await putRequest(`/passkeys/${passkeyModalAction.id}/name`, { body: { name: passkeyName } });
         notifications.show({ title: 'Passkey rinominata', message: 'Il nome è stato aggiornato con successo', color: 'green' });
         queryClient.invalidateQueries({ queryKey: ['me'] });
-      } catch (e: any) {
-        notifications.show({ title: 'Errore', message: e.message || 'Errore durante la rinomina della passkey', color: 'red' });
+      } catch (e) {
+        notifications.show({ title: 'Errore', message: (e as ApiError).message || 'Errore durante la rinomina della passkey', color: 'red' });
       } finally {
         setLoading(false);
         setPasskeyModalAction(null);
@@ -143,8 +144,8 @@ export default function UserProfilePage() {
       await deleteRequest(`/passkeys/${deletePasskeyId}`);
       notifications.show({ title: 'Passkey eliminata', message: 'Passkey eliminata con successo', color: 'green' });
       queryClient.invalidateQueries({ queryKey: ['me'] });
-    } catch (e: any) {
-      notifications.show({ title: 'Errore', message: e.message || "Impossibile eliminare la passkey", color: 'red' });
+    } catch (e) {
+      notifications.show({ title: 'Errore', message: (e as ApiError).message || "Impossibile eliminare la passkey", color: 'red' });
     } finally {
       setLoading(false);
       setDeletePasskeyId(null);
@@ -242,7 +243,7 @@ export default function UserProfilePage() {
                   </ThemeIcon>
                   <Box>
                     <Text fw={600}>{pk.name}</Text>
-                    <Text size="xs" c="dimmed">Creata il: {new Date(pk.createdAt || Date.now()).toLocaleDateString()}</Text>
+                    <Text size="xs" c="dimmed">Creata il: {pk.createdAt ? new Date(pk.createdAt).toLocaleDateString() : '—'}</Text>
                   </Box>
                 </Group>
                 <Group gap="xs">
@@ -284,7 +285,7 @@ export default function UserProfilePage() {
           Questi sono i dispositivi attualmente connessi al tuo account. Se noti attività sospette, disconnettili.
         </Text>
         <Stack gap="sm">
-          {(currentUser?.sessions || [])?.map((session: any) => {
+          {(currentUser?.sessions || []).map((session) => {
             return (
               <Paper key={session.sessionId} withBorder p="sm" radius="md" style={{ background: 'rgba(0,0,0,0.01)' }}>
                 <Flex align="center" justify="space-between" wrap="wrap" gap="md">

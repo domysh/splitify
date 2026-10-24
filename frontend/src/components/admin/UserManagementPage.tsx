@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { useHeader, useLoading } from "@/utils/store";
 import { UserTable } from "@/components/user/UserTable";
 import { UserModal } from "@/components/user/UserModal";
-import { adminUsersQuery } from "@/utils/queries";
+import { useAdminUsersQuery } from "@/utils/queries";
 import { IconUserPlus } from "@tabler/icons-react";
 
 const UserManagementPage = () => {
@@ -14,7 +14,7 @@ const UserManagementPage = () => {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const { setHeader } = useHeader();
     const currentUser = useCurrentUser();
-    const usersQuery = adminUsersQuery()
+    const usersQuery = useAdminUsersQuery()
 
     useEffect(() => {
         
@@ -23,7 +23,7 @@ const UserManagementPage = () => {
             navigate('/');
         }
         setHeader(null);
-    }, [currentUser, navigate, setHeader]);
+    }, [currentUser, navigate, setHeader, setLoading]);
 
     useEffect(() => {
         setLoading(usersQuery.isLoading || (currentUser?.isLoading??false));

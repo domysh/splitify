@@ -66,7 +66,7 @@ export const UserTable = ({ users }: UserTableProps) => {
                 </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-                {users.map((user: any) => (
+                {users.map((user) => (
                     <Table.Tr key={user.id}>
                         <Table.Td><Text fw={500}>{user.email}</Text></Table.Td>
                         <Table.Td>{getRoleBadge(user.role)}</Table.Td>

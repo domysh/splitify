@@ -52,9 +52,10 @@ export const AddProductModal = ({ open, onClose, board, closeOnEnd }: AddProduct
         },
     });
 
+    const resetForm = formAdd.reset;
     useEffect(() => {
-        formAdd.reset();
-    }, [open]);
+        resetForm();
+    }, [open, resetForm]);
 
 
     const handleSearchFocus = () => {

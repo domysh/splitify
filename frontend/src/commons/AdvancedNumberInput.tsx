@@ -41,7 +41,7 @@ export const AdvancedNumberInput = forwardRef<
                     return null;
                 try {
                     return new Big(String(val).replace(decimalSeparator, "."));
-                } catch (error) {
+                } catch {
                     return null;
                 }
             },
@@ -53,10 +53,10 @@ export const AdvancedNumberInput = forwardRef<
         const [isTyping, setIsTyping] = useState(false);
         const [userClearedValue, setUserClearedValue] = useState(false);
 
-        const setBigValue = (v: Big|null) => {
+        const setBigValue = useCallback((v: Big|null) => {
             if (v && (v).eq(bigValue??Big(0))) return;
             setBigValueState(v);
-        }
+        }, [bigValue]);
 
         const formatValue = useCallback(
             (val: Big | null): string => {
@@ -143,7 +143,7 @@ export const AdvancedNumberInput = forwardRef<
                     setBigValue(newBigValue);
                     onChange?.(newBigValue);
                 }
-            } catch (error) {
+            } catch {
                 // Skip errors - this allows partial input like "5," or "5."
             }
         };

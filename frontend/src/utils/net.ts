@@ -3,6 +3,11 @@ import { notifications } from "@mantine/notifications"
 
 export const DEV_IP_BACKEND = "127.0.0.1:8080"
 
+// Shape of errors thrown by elaborateJsonRequest
+export type ApiError = { code?: number, message?: string, detail?: string }
+
+type Params = Record<string, string>
+
 export const getAuthHeaders = ():({[k:string]:string}) => {
     const token = useAuth.getState().token
     if (!token){
@@ -14,7 +19,7 @@ export const getAuthHeaders = ():({[k:string]:string}) => {
 
 }
 
-export const getLink = (url:string, params?: {[p:string]:any}): string => {
+export const getLink = (url:string, params?: Params): string => {
     url = url.trim()
     if (url.charAt(0) != '/'){
         url = "/"+url
@@ -65,7 +70,7 @@ export const elaborateJsonRequest = (res: Response) => {
     return res.json()
 }
 
-export const getRequest = async (url:string, options: {params?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
+export const getRequest = async (url:string, options: {params?: Params, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "GET",
         credentials: "same-origin",
@@ -74,7 +79,7 @@ export const getRequest = async (url:string, options: {params?: {[p:string]:any}
     }).then(elaborateJsonRequest)
 }
 
-export const postRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
+export const postRequest = async (url:string, options: {params?: Params, body?: object, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "POST",
         credentials: "same-origin",
@@ -88,20 +93,7 @@ export const postRequest = async (url:string, options: {params?: {[p:string]:any
     }).then(elaborateJsonRequest)
 }
 
-export const postFormRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}} = {}):Promise<any> => {
-    return await fetch(getLink(url, options.params), {
-        method: "POST",
-        credentials: "same-origin",
-        cache: 'no-cache',
-        body: options.body?new URLSearchParams(options.body).toString():undefined,
-        headers:{
-            "Content-Type": "application/x-www-form-urlencoded",
-            ...getAuthHeaders()
-        }
-    }).then(elaborateJsonRequest)
-}
-
-export const putRequest = async (url:string, options: {params?: {[p:string]:any}, body?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
+export const putRequest = async (url:string, options: {params?: Params, body?: object, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "PUT",
         credentials: "same-origin",
@@ -115,7 +107,7 @@ export const putRequest = async (url:string, options: {params?: {[p:string]:any}
     }).then(elaborateJsonRequest)
 }
 
-export const deleteRequest = async (url:string, options: {params?: {[p:string]:any}, headers?: Record<string, string>} = {}) => {
+export const deleteRequest = async (url:string, options: {params?: Params, headers?: Record<string, string>} = {}) => {
     return await fetch(getLink(url, options.params), {
         method: "DELETE",
         credentials: "same-origin",

@@ -1,6 +1,6 @@
 import { board, BoardPermission, Role } from './types';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { meQuery } from './queries';
+import { useMeQuery } from './queries';
 import { calculateDebits } from '.';
 import { PaylistWorkerResponse } from '@/workers/paylistWorker';
 import { useMediaQuery } from "@mantine/hooks";
@@ -61,7 +61,7 @@ export const usePermissions = (board?: board) => {
 };
 
 export const useCurrentUser = () => {
-    const me = meQuery()
+    const me = useMeQuery()
     return useMemo(() => {
         if (me.data) {
             const role = me.data.role
@@ -94,6 +94,8 @@ export const useCalculateDebits = (board?: board) => {
     return useMemo(() => calculateDebits(board), [board]);
 }
 
+const NO_BOARD_RESULT: PaylistWorkerResponse = { status: "empty", payments: [], what: "no-board" };
+
 export const useCalculatePaylist = (board?: board) => {
     const debits = useCalculateDebits(board)
     const balances = useMemo(() => (board?.members.map((memb) => ({
@@ -122,16 +124,7 @@ export const useCalculatePaylist = (board?: board) => {
 
 
     useEffect(() => {
-        if (!workerRef.current || !board) {
-            if (!board) {
-                setResult({
-                    status: "empty",
-                    payments: [],
-                    what: "no-board",
-                });
-            }
-            return;
-        }
+        if (!workerRef.current || !board) return;
 
         setResult({
             status: "loading",
@@ -150,7 +143,7 @@ export const useCalculatePaylist = (board?: board) => {
         return () => clearTimeout(timerId);
     }, [board, balances]);
 
-    return result;
+    return board ? result : NO_BOARD_RESULT;
 }
 
 export const useStickyScrollableHeader = ({ headHeight, topOffset }: { headHeight: number, topOffset: number }) => {
@@ -333,6 +326,6 @@ export const useStickyScrollableHeader = ({ headHeight, topOffset }: { headHeigh
             clearInterval(interval)
             cleanupHorizontal();
         };
-    }, []);
+    }, [headHeight, topOffset]);
     return tableRef
 }

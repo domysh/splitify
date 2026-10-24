@@ -1,4 +1,5 @@
-import { registrationInfoQuery } from "@/utils/queries";
+import type { ApiError } from '@/utils/net';
+import { useRegistrationInfoQuery } from "@/utils/queries";
 import { putRequest } from "@/utils/net";
 import { RegistrationMode } from "@/utils/types";
 import { Box, Button, Card, Divider, Group, Loader, Paper, Radio, Text, TextInput, Title, Alert } from "@mantine/core";
@@ -12,7 +13,7 @@ import { useLoading } from "@/utils/store";
 const SystemSettings = () => {
     const { setLoading } = useLoading();
     const queryClient = useQueryClient();
-    const regInfo = registrationInfoQuery();
+    const regInfo = useRegistrationInfoQuery();
     const form = useForm({
         initialValues: {
             registrationMode: RegistrationMode.PRIVATE,
@@ -42,6 +43,7 @@ const SystemSettings = () => {
             });
             form.reset()
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `form` is a new object every render; only re-run on these triggers
     }, [regInfo.isFetching]);
 
 
@@ -69,7 +71,8 @@ const SystemSettings = () => {
             
             
             queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as ApiError;
             notifications.show({
                 title: 'Errore',
                 message: error?.message || 'Si è verificato un errore durante l\'aggiornamento delle impostazioni',

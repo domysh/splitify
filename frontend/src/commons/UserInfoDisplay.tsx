@@ -3,9 +3,7 @@ import { Avatar, Box, Group, Text } from "@mantine/core";
 import { getInitials } from "@/utils/formatters";
 import { useNavigate } from "react-router";
 
-export interface UserInfoDisplayProps {};
-
-const UserInfoDisplay = ({}:UserInfoDisplayProps) => {
+const UserInfoDisplay = () => {
   const currentUser = useCurrentUser();
   const navigate = useNavigate();
 

@@ -32,7 +32,7 @@ export const toIntValue = (
     try {
         const bigVal = typeof val === "object" ? val : new Big(String(val));
         return bigVal.mul(100).round(0).toNumber();
-    } catch (error) {
+    } catch {
         return undefined;
     }
 };

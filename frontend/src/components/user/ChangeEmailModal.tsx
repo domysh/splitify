@@ -1,3 +1,4 @@
+import type { ApiError } from '@/utils/net';
 import { useEffect, useState } from 'react';
 import {
     Alert,
@@ -57,6 +58,7 @@ export const ChangeEmailModal = ({ open, onClose, currentEmail, pendingChange }:
     // Resume a change that was already started (e.g. after a page reload).
     useEffect(() => {
         if (!open) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local UI state when the modal opens
         setError(null);
         form.setFieldValue('otp', '');
         if (pendingChange) {
@@ -91,7 +93,8 @@ export const ChangeEmailModal = ({ open, onClose, currentEmail, pendingChange }:
                 message: `Abbiamo inviato un codice a ${form.values.email}`,
                 color: 'blue',
             });
-        } catch (err: any) {
+        } catch (caught) {
+            const err = caught as ApiError;
             setError(err.message || "Errore durante l'invio dell'email");
         } finally {
             setLoading(false);
@@ -112,7 +115,8 @@ export const ChangeEmailModal = ({ open, onClose, currentEmail, pendingChange }:
                 color: 'green',
             });
             onClose();
-        } catch (err: any) {
+        } catch (caught) {
+            const err = caught as ApiError;
             setError(err.message || 'Codice non valido o scaduto');
         } finally {
             setLoading(false);

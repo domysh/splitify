@@ -37,12 +37,12 @@ const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
 const BurgerSection = lazy(() => import("@/components/BurgerSection"));
 const UserProfilePage = lazy(() => import("@/components/user/UserProfilePage"));
 
-import { Route, Routes, useNavigate, Navigate } from "react-router";
+import { Route, Routes, useNavigate, Navigate, useLocation } from "react-router";
 
 export default function App() {
     const isMobile = useMobile();
     const isSmallScreen = useSmallScreen();
-    const [mobileOpened, setMobileOpened] = useState(false);
+    const [mobileOpenedState, setMobileOpened] = useState(false);
     const queryClient = useQueryClient();
     const { setLoading } = useLoading();
     const loadingStatus = useLoadingStore((state) => state.loading);
@@ -59,7 +59,7 @@ export default function App() {
                 }
             }
             onConnectionCallbacks.forEach((callback) => {
-                callback.cb(socket);
+                callback.cb();
             });
             first_time = false;
         });
@@ -101,29 +101,21 @@ export default function App() {
         setLoading(false);
     }, [setLoading]);
 
-    const [pathLocation, setPathLocation] = useState(window.location.pathname);
-    useEffect(() => {
-        setPathLocation(window.location.pathname);
-    }, [navigate]);
+    const pathLocation = useLocation().pathname;
 
     const closeNavbar = () => setMobileOpened(false);
 
     const handleLogout = useCallback(async () => {
         try {
             await deleteRequest('/logout');
-        } catch (e) { }
+        } catch { /* logout locally even if the server call fails */ }
         logout();
         queryClient.clear();
         navigate("/");
     }, [queryClient, logout, navigate]);
 
     const burgerHaveElements = token ? true : false;
-
-    useEffect(() => {
-        if (!burgerHaveElements) {
-            setMobileOpened(false);
-        }
-    }, [burgerHaveElements]);
+    const mobileOpened = mobileOpenedState && burgerHaveElements;
 
     return (
         <>

@@ -1,3 +1,4 @@
+import type { ApiError } from '@/utils/net';
 import {
     Button,
     Text,
@@ -26,7 +27,7 @@ import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { RegistrationMode } from "@/utils/types";
 import { Outlet, useSearchParams } from "react-router";
 import { useAuth, useHeader, useLoading } from "@/utils/store";
-import { registrationInfoQuery } from "@/utils/queries";
+import { useRegistrationInfoQuery } from "@/utils/queries";
 
 import { checkboxStyles, inputStyles } from "@/styles/commonStyles";
 
@@ -40,7 +41,7 @@ type AuthStep = 'EMAIL' | 'OTP';
 const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     const { token, login: setToken, tokenInfo } = useAuth();
     const { setLoading } = useLoading();
-    const regInfo = registrationInfoQuery();
+    const regInfo = useRegistrationInfoQuery();
     const [error, setError] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
     const urlToken = searchParams.get('token');
@@ -135,9 +136,11 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
     useEffect(() => {
         if (!token) {
             setHeader(null);
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- restart the login flow when the token is cleared
             setStep('EMAIL');
             form.setFieldValue('otp', '');
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `form` is a new object every render; only re-run on these triggers
     }, [token, setHeader]);
 
     const checkPasskeyAndComplete = async (accessToken: string) => {
@@ -172,7 +175,8 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
                 setResendTimer(60);
                 notifications.show({ title: 'Codice inviato', message: 'Controlla la tua email', color: 'blue' });
             }
-        } catch (err: any) {
+        } catch (caught) {
+            const err = caught as ApiError;
             setError(err.message || "Errore durante l'invio dell'email");
         } finally {
             setLoading(false);
@@ -194,7 +198,8 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             if (res.access_token) {
                 await checkPasskeyAndComplete(res.access_token);
             }
-        } catch (err: any) {
+        } catch (caught) {
+            const err = caught as ApiError;
             setError(err.message || "Codice non valido o scaduto");
         } finally {
             setLoading(false);
@@ -237,7 +242,8 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             if (verifyResp.verified) {
                 notifications.show({ title: 'Passkey aggiunta', message: 'Passkey registrata con successo', color: 'green' });
             }
-        } catch (error: any) {
+        } catch (caught) {
+             const error = caught as ApiError;
              notifications.show({ title: 'Errore Passkey', message: error.message || 'Impossibile registrare la passkey', color: 'red' });
         } finally {
             setIsCreatingPasskey(false);
@@ -284,7 +290,8 @@ const LoginProvider = ({ children, force = false }: LoginProviderProps) => {
             } else {
                 throw new Error('Verifica fallita');
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = caught as ApiError;
             console.error(error);
             setError(error.message || "Errore durante l'accesso con Passkey");
             notifications.show({

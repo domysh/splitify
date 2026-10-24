@@ -30,7 +30,7 @@ import {
 } from "@tabler/icons-react";
 import { EditHeader } from "@/commons/EditHeader";
 import { ResponsivePager } from "@/commons/ResponsivePager";
-import { transactionsQuery } from "@/utils/queries";
+import { useTransactionsQuery } from "@/utils/queries";
 
 export interface ProductEdits {
     [id: string]: {
@@ -60,16 +60,17 @@ export const ProductSettingsModal = ({
     const [savingChanges, setSavingChanges] = useState<boolean>(false);
     const isMobile = useMobile();
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const { data: transactions } = transactionsQuery(board.id);
+    const { data: transactions } = useTransactionsQuery(board.id);
 
     useEffect(() => {
-        setEdits({});
-        if (open) {
-            setTimeout(() => setAnimateTable(true), 100);
-        } else {
+        if (!open) return;
+        const timer = setTimeout(() => setAnimateTable(true), 100);
+        return () => {
+            clearTimeout(timer);
+            setEdits({});
             setAnimateTable(false);
             setCurrentPage(1);
-        }
+        };
     }, [open]);
 
     const paginatedProducts = useMemo(() => {
